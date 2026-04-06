@@ -109,7 +109,10 @@ const handleDeleteCustomer = async () => {
     <div :class="{'hidden md:block': selectedCustomer, 'block': !selectedCustomer}">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 mb-4 md:mb-6">
         <div>
-          <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">الزبائن</h1>
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">الزبائن</h1>
+            <span class="bg-slate-100 text-slate-700 text-sm font-bold px-3 py-1 rounded-lg border border-slate-200 shadow-sm" dir="rtl">{{ store.customers.length }} زبون</span>
+          </div>
           <p class="text-sm md:text-base text-slate-500 mt-1">كشف الحسابات والأرصدة للزبائن.</p>
         </div>
 

@@ -23,7 +23,7 @@ const form = ref({
   deviceType: 'phone',
   customerName: '',
   customerId: '',
-  paymentMode: 'now',
+  paymentMode: 'debt',
   quantity: 1
 })
 
