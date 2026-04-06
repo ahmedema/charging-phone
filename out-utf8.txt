@@ -1,0 +1,37 @@
+﻿node.exe : npm error code 
+UNKNOWN
+At C:\Program 
+Files\nodejs\npm.ps1:29 
+char:3
++   & $NODE_EXE 
+$NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
+    + CategoryInfo         
+     : NotSpecified: (npm  
+   error code UNKNOWN:St   
+ ring) [], RemoteExcept    
+ion
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
+npm error syscall mkdir
+
+npm error path F:\charging_
+phone\node_modules\local-pk
+g
+
+npm error errno -4094
+
+npm error UNKNOWN: unknown 
+error, mkdir 'F:\charging_p
+hone\node_modules\local-pkg
+'
+
+npm error A complete log 
+of this run can be found 
+in: C:\Users\it\AppData\Loc
+al\npm-cache\_logs\2026-04-
+06T09_13_33_795Z-debug-0.lo
+g
+

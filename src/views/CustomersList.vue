@@ -15,7 +15,7 @@ const filterDebtsOnly = ref(false)
 const filteredCustomers = computed(() => {
   let result = store.customers.filter(c => c.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
   if (filterDebtsOnly.value) {
-    result = result.filter(c => c.balance < 0)
+    result = result.filter(c => c.balance < 0).sort((a, b) => a.balance - b.balance)
   }
   return result
 })
@@ -72,16 +72,20 @@ const getDeviceIcon = (device) => {
 
 const isEditing = ref(false)
 const editName = ref('')
+const editBalance = ref(0)
 
 const startEdit = () => {
   editName.value = selectedCustomer.value.name
+  editBalance.value = selectedCustomer.value.balance
   isEditing.value = true
 }
 
 const saveEdit = async () => {
   if (editName.value.trim()) {
-    await editCustomer(selectedCustomer.value.id, { name: editName.value })
+    const updatedBalance = Number(editBalance.value) || 0
+    await editCustomer(selectedCustomer.value.id, { name: editName.value, balance: updatedBalance })
     selectedCustomer.value.name = editName.value
+    selectedCustomer.value.balance = updatedBalance
   }
   isEditing.value = false
 }
@@ -228,13 +232,17 @@ const handleDeleteCustomer = async () => {
             </div>
             <div class="text-left">
               <span class="block text-xs font-semibold text-slate-400 mb-1">صافي الرصيد</span>
-              <div class="inline-flex items-center justify-center px-4 py-1.5 rounded-lg border font-mono text-xl font-bold"
+              <div v-if="!isEditing" class="inline-flex items-center justify-center px-4 py-1.5 rounded-lg border font-mono text-xl font-bold"
                   :class="{
                     'bg-green-50 text-green-700 border-green-200': selectedCustomer.balance > 0,
                     'bg-red-50 text-red-600 border-red-200': selectedCustomer.balance < 0,
                     'bg-slate-100 text-slate-600 border-slate-200': selectedCustomer.balance === 0
                   }" dir="ltr">
                   {{ selectedCustomer.balance > 0 ? '+' : '' }}{{ selectedCustomer.balance }} <span class="text-xs font-sans ms-1 font-normal">₪</span>
+              </div>
+              <div v-else class="flex items-center" dir="ltr">
+                  <input type="number" step="any" v-model="editBalance" @keyup.enter="saveEdit" class="w-full text-center font-mono text-xl font-bold bg-white border border-slate-300 rounded-lg px-2 py-1 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" style="max-width: 6rem;" />
+                  <span class="text-xs font-sans ms-2 font-normal text-slate-500">₪</span>
               </div>
             </div>
           </div>

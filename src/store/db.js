@@ -104,6 +104,7 @@ export const deleteCustomer = async (customerId) => {
   store.customers = store.customers.filter(c => c.id !== customerId);
   store.operations = store.operations.filter(op => op.customer_id !== customerId);
   
+  await supabase.from('operations').delete().eq('customer_id', customerId);
   await supabase.from('customers').delete().eq('id', customerId);
 };
 
