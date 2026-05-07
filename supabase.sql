@@ -2,6 +2,7 @@
 CREATE TABLE public.customers (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    phone TEXT,
     balance NUMERIC DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
