@@ -118,7 +118,7 @@ const sendIndividualDebtReminder = (customer, prefix = '972') => {
     `نود تذكيرك بوجود ديون مستحقة في *نقطة شحن المبحوح*.`,
     `💸 قيمة الدين الحالي: *${Math.abs(customer.balance)} ₪*`,
     ``,
-    `يرجى إرسال قيمة الدين على محفظة جوال بي أو بال بي (PalPay) على الرقم:`,
+    `يرجى إرسال قيمة الدين على محفظة بال بي (PalPay) على الرقم:`,
     `📱 *0598811023*`,
     ``,
     `⚠️ يرجى إرسال إشعار الدفع هنا بعد التحويل ليتم تحديث رصيدك.`,
@@ -143,17 +143,16 @@ const sendIndividualDebtReminder = (customer, prefix = '972') => {
 
 // ─── إرسال تقرير الديون الشامل لمالك النظام عبر واتسآب ───
 const OWNER_WHATSAPP = '972594307298'
-const DEBT_LIMIT = 30
 
 const debtorsAboveLimit = computed(() =>
   store.customers
-    .filter(c => c.balance < -DEBT_LIMIT)
+    .filter(c => c.balance < 0)
     .sort((a, b) => a.balance - b.balance)
 )
 
 const sendAllDebtsReport = () => {
   if (debtorsAboveLimit.value.length === 0) {
-    alert('لا يوجد زبائن تجاوز دينهم 30 ₪.')
+    alert('لا يوجد زبائن عليهم ديون حالياً.')
     return
   }
 
