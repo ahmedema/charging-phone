@@ -12,6 +12,8 @@ const form = ref({
   amount: ''
 })
 
+const isSubmitting = ref(false)
+
 const handleCustomerInput = () => {
   const existing = store.customers.find(c => c.name === form.value.customerName)
   if (existing) {
@@ -32,25 +34,33 @@ const selectedCustomer = computed(() => {
 
 const submit = async () => {
   if (!form.value.customerId || !form.value.amount || isNaN(form.value.amount)) return
+  if (isSubmitting.value) return
+  
+  isSubmitting.value = true
 
-  const amountNumber = Number(form.value.amount)
+  try {
+    const amountNumber = Number(form.value.amount)
 
-  // Update balance (adds money to balance)
-  await updateCustomerBalance(form.value.customerId, amountNumber)
+    // Update balance (adds money to balance)
+    await updateCustomerBalance(form.value.customerId, amountNumber)
 
-  // Create payment operation
-  await addOperation({
-    customer_id: form.value.customerId,
-    customer_name: selectedCustomer.value.name,
-    type: 'payment',
-    amount: amountNumber,
-    paid: amountNumber, // Full amount is paid
-    debt: 0,
-    from_balance: 0,
-    payment_mode: 'now' 
-  })
+    // Create payment operation
+    await addOperation({
+      customer_id: form.value.customerId,
+      customer_name: selectedCustomer.value.name,
+      type: 'payment',
+      amount: amountNumber,
+      paid: amountNumber, // Full amount is paid
+      debt: 0,
+      from_balance: 0,
+      payment_mode: 'now' 
+    })
 
-  router.push('/customers')
+    router.push('/customers')
+  } catch (err) {
+    console.error('Failed to add payment:', err)
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -66,7 +76,13 @@ const submit = async () => {
       <p class="text-slate-500 mt-2 text-lg">استلام مبلغ من الزبون وإضافته للرصيد.</p>
     </div>
 
-    <form @submit.prevent="submit" class="glass rounded-3xl p-5 md:p-10 space-y-6 md:space-y-8 shadow-xl border border-slate-200/60 relative overflow-hidden">
+    <form @submit.prevent="submit" 
+          class="glass rounded-3xl p-5 md:p-10 space-y-6 md:space-y-8 shadow-xl border border-slate-200/60 relative overflow-hidden transition-opacity duration-200"
+          :class="isSubmitting ? 'opacity-75 pointer-events-none cursor-wait' : ''">
+      
+      <!-- Overlay to block all interactions during submission -->
+      <div v-if="isSubmitting" class="absolute inset-0 z-50 bg-transparent"></div>
+
       <div class="absolute top-0 left-0 w-48 h-48 md:w-64 md:h-64 bg-green-100 rounded-full blur-3xl opacity-30 -ml-20 -mt-20 pointer-events-none"></div>
 
       <!-- Customer Select -->
@@ -126,10 +142,11 @@ const submit = async () => {
 
       <!-- Actions -->
       <div class="pt-4 relative z-10">
-        <button type="submit" :disabled="!form.customerId"
+        <button type="submit" :disabled="!form.customerId || isSubmitting"
           class="w-full flex justify-center items-center gap-2 py-4 rounded-xl text-white font-bold text-lg shadow-lg shadow-green-500/30 transition-all focus:ring focus:ring-green-300"
-          :class="!form.customerId ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-green-600 active:bg-green-700'">
-          إضافة الدفعة
+          :class="(!form.customerId || isSubmitting) ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-green-600 active:bg-green-700'">
+          <span v-if="isSubmitting" class="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          <span>{{ isSubmitting ? 'جاري الحفظ...' : 'إضافة الدفعة' }}</span>
         </button>
       </div>
     </form>

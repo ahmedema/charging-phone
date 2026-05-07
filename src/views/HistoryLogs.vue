@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { store } from '../store/db'
-import { Search, Filter, Smartphone, Laptop, Battery, Zap, Banknote, ShieldAlert, ArrowDownLeft, ArrowUpRight } from 'lucide-vue-next'
+import { store, deleteOperation } from '../store/db'
+import { Search, Filter, Smartphone, Laptop, Battery, Zap, Banknote, ShieldAlert, ArrowDownLeft, ArrowUpRight, Trash2 } from 'lucide-vue-next'
 import { format, parseISO } from 'date-fns'
 import { ar } from 'date-fns/locale'
 
@@ -57,6 +57,12 @@ const getDeviceIcon = (device) => {
   if (device === 'battery') return Battery;
   if (device === 'powerbank') return Zap;
   return ShieldAlert;
+}
+
+const handleDeleteOperation = async (op) => {
+  if (confirm('هل أنت متأكد من حذف هذه العملية؟ سيتم التراجع عن أي تغييرات حدثت على رصيد الزبون بناءً عليها.')) {
+    await deleteOperation(op.id)
+  }
 }
 </script>
 
@@ -118,6 +124,7 @@ const getDeviceIcon = (device) => {
               <th scope="col" class="px-6 py-4 font-bold text-center">مدفوع</th>
               <th scope="col" class="px-6 py-4 font-bold text-center">دين</th>
               <th scope="col" class="px-6 py-4 font-bold text-center">من الرصيد</th>
+              <th scope="col" class="px-6 py-4 font-bold text-center"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
@@ -149,6 +156,11 @@ const getDeviceIcon = (device) => {
                 <span v-if="op.from_balance" class="inline-flex items-center gap-1 text-orange-600 font-bold bg-orange-50 px-2 py-0.5 rounded text-xs">{{ op.from_balance }}</span>
                 <span v-else class="text-slate-300">-</span>
               </td>
+              <td class="px-6 py-4 text-center">
+                <button @click="handleDeleteOperation(op)" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="حذف العملية">
+                  <Trash2 class="w-4 h-4" />
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -161,7 +173,12 @@ const getDeviceIcon = (device) => {
                 <div class="font-bold text-slate-900 text-lg">{{ op.customer_name }}</div>
                 <div class="text-xs text-slate-500 mt-1" dir="ltr">{{ formatDate(op.created_at) }}</div>
               </div>
-              <div class="font-mono font-bold text-lg text-slate-800">{{ op.amount }} <span class="text-xs font-sans font-normal text-slate-500">₪</span></div>
+              <div class="flex items-center gap-3">
+                <div class="font-mono font-bold text-lg text-slate-800">{{ op.amount }} <span class="text-xs font-sans font-normal text-slate-500">₪</span></div>
+                <button @click="handleDeleteOperation(op)" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
+                  <Trash2 class="w-4 h-4" />
+                </button>
+              </div>
             </div>
             
             <div class="flex items-center justify-between mt-2">

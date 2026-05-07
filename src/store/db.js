@@ -136,6 +136,36 @@ export const deleteCustomer = async (customerId) => {
   }
 };
 
+export const deleteOperation = async (operationId) => {
+  const op = store.operations.find(o => o.id === operationId);
+  if (!op) return;
+
+  // Reverse balance updates
+  if (op.customer_id) {
+    if (op.type === 'charge') {
+      if (op.payment_mode === 'debt' || op.payment_mode === 'balance') {
+        await updateCustomerBalance(op.customer_id, Number(op.amount)); // reverse deduction (+amount)
+      }
+    } else if (op.type === 'payment') {
+      await updateCustomerBalance(op.customer_id, -Number(op.amount)); // reverse payment (-amount)
+    }
+  }
+
+  // Remove from store
+  store.operations = store.operations.filter(o => o.id !== operationId);
+
+  if (isOffline()) {
+    enqueue('deleteOperation', { id: operationId });
+    console.warn('⏳ لا إنترنت: تم حفظ حذف العملية في قائمة الانتظار');
+  } else {
+    const { error } = await supabase.from('operations').delete().eq('id', operationId);
+    if (error) {
+      console.error("Error deleting operation:", error);
+      enqueue('deleteOperation', { id: operationId });
+    }
+  }
+};
+
 export const editCustomer = async (customerId, updatedData) => {
   const index = store.customers.findIndex(c => c.id === customerId);
   if (index !== -1) {

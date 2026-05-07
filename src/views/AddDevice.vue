@@ -156,7 +156,13 @@ const submit = async () => {
       <p class="text-slate-500 mt-2 text-lg">تسجيل شحن جهاز جديد وتحديد آلية الدفع.</p>
     </div>
 
-    <form @submit.prevent="submit" class="glass rounded-3xl p-5 md:p-10 space-y-6 md:space-y-8 shadow-xl border border-slate-200/60 relative overflow-hidden">
+    <form @submit.prevent="submit" 
+          class="glass rounded-3xl p-5 md:p-10 space-y-6 md:space-y-8 shadow-xl border border-slate-200/60 relative overflow-hidden transition-opacity duration-200"
+          :class="isSubmitting ? 'opacity-75 pointer-events-none cursor-wait' : ''">
+          
+      <!-- Overlay to block all interactions during submission -->
+      <div v-if="isSubmitting" class="absolute inset-0 z-50 bg-transparent"></div>
+
       <!-- Decorator -->
       <div class="absolute top-0 right-0 w-48 h-48 md:w-64 md:h-64 bg-primary-100 rounded-full blur-3xl opacity-30 -mr-20 -mt-20 pointer-events-none"></div>
 
