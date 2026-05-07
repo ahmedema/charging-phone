@@ -3,6 +3,9 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isLoading, initData } from './store/db'
 import { supabase } from './supabase.js'
+import { syncQueue } from './store/offlineQueue'
+import { isOnline } from './composables/useOnlineStatus'
+import OfflineBanner from './components/OfflineBanner.vue'
 import { Home, PlusSquare, CreditCard, Search, Users, Settings, Menu, X, Zap, LogOut } from 'lucide-vue-next'
 
 const isMobileMenuOpen = ref(false)
@@ -30,7 +33,11 @@ const handleLogout = async () => {
 onMounted(async () => {
   const { data: { session } } = await supabase.auth.getSession()
   if (session) {
-    initData()
+    await initData()
+    // مزامنة أي عمليات معلّقة من قبل (إن وُجدت)
+    if (isOnline.value) {
+      setTimeout(() => syncQueue(), 2000)
+    }
   } else {
     isLoading.value = false
   }
@@ -38,6 +45,9 @@ onMounted(async () => {
 </script>
 
 <template>
+  <!-- شريط حالة الاتصال -->
+  <OfflineBanner />
+
   <!-- Global Loader -->
   <div v-if="isLoading" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm">
     <div class="w-16 h-16 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>

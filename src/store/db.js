@@ -1,5 +1,6 @@
 import { reactive, ref } from 'vue';
 import { supabase } from '../supabase.js';
+import { enqueue, loadQueue } from './offlineQueue.js';
 
 export const isLoading = ref(true);
 
@@ -17,6 +18,9 @@ export const store = reactive({
 export const initData = async () => {
   isLoading.value = true;
   
+  // تحميل قائمة الانتظار أولاً
+  loadQueue();
+
   try {
     // Fetch prices
     const { data: pricesData, error: pricesError } = await supabase.from('prices').select('*');
@@ -44,7 +48,10 @@ export const initData = async () => {
   }
 };
 
-// Actions
+// ───────── Helper ─────────
+const isOffline = () => !navigator.onLine;
+
+// ───────── Actions ─────────
 
 export const addOperation = async (op) => {
   const newOp = {
@@ -53,13 +60,21 @@ export const addOperation = async (op) => {
     ...op
   };
   
-  // Optimistic update
+  // Optimistic update (يُعرض فوراً في الواجهة)
   store.operations.unshift(newOp);
   
-  // DB update
-  const { error } = await supabase.from('operations').insert(newOp);
-  if (error) {
-    console.error("Error adding operation:", error);
+  if (isOffline()) {
+    // ❌ لا يوجد إنترنت → ضعها في قائمة الانتظار
+    enqueue('addOperation', newOp);
+    console.warn('⏳ لا إنترنت: تم حفظ العملية في قائمة الانتظار');
+  } else {
+    // ✅ يوجد إنترنت → أرسل مباشرة
+    const { error } = await supabase.from('operations').insert(newOp);
+    if (error) {
+      console.error("Error adding operation:", error);
+      // فشل الإرسال → ضع في قائمة الانتظار
+      enqueue('addOperation', newOp);
+    }
   }
   return newOp;
 };
@@ -75,10 +90,15 @@ export const addCustomer = async (customer) => {
   // Optimistic update
   store.customers.push(newCust);
   
-  // DB update
-  const { error } = await supabase.from('customers').insert(newCust);
-  if (error) {
-    console.error("Error adding customer:", error);
+  if (isOffline()) {
+    enqueue('addCustomer', newCust);
+    console.warn('⏳ لا إنترنت: تم حفظ الزبون في قائمة الانتظار');
+  } else {
+    const { error } = await supabase.from('customers').insert(newCust);
+    if (error) {
+      console.error("Error adding customer:", error);
+      enqueue('addCustomer', newCust);
+    }
   }
   return newCust;
 };
@@ -89,13 +109,18 @@ export const updateCustomerBalance = async (customerId, amount) => {
     // Optimistic update
     cust.balance = Number(cust.balance) + Number(amount);
     
-    // DB update
-    const { error } = await supabase.from('customers')
-      .update({ balance: cust.balance })
-      .eq('id', customerId);
-      
-    if (error) {
-      console.error("Error updating customer balance:", error);
+    if (isOffline()) {
+      enqueue('updateBalance', { customerId, balance: cust.balance });
+      console.warn('⏳ لا إنترنت: تم حفظ تحديث الرصيد في قائمة الانتظار');
+    } else {
+      const { error } = await supabase.from('customers')
+        .update({ balance: cust.balance })
+        .eq('id', customerId);
+        
+      if (error) {
+        console.error("Error updating customer balance:", error);
+        enqueue('updateBalance', { customerId, balance: cust.balance });
+      }
     }
   }
 };
@@ -104,8 +129,10 @@ export const deleteCustomer = async (customerId) => {
   store.customers = store.customers.filter(c => c.id !== customerId);
   store.operations = store.operations.filter(op => op.customer_id !== customerId);
   
-  await supabase.from('operations').delete().eq('customer_id', customerId);
-  await supabase.from('customers').delete().eq('id', customerId);
+  if (!isOffline()) {
+    await supabase.from('operations').delete().eq('customer_id', customerId);
+    await supabase.from('customers').delete().eq('id', customerId);
+  }
 };
 
 export const editCustomer = async (customerId, updatedData) => {
@@ -113,7 +140,9 @@ export const editCustomer = async (customerId, updatedData) => {
   if (index !== -1) {
     store.customers[index] = { ...store.customers[index], ...updatedData };
     
-    await supabase.from('customers').update(updatedData).eq('id', customerId);
+    if (!isOffline()) {
+      await supabase.from('customers').update(updatedData).eq('id', customerId);
+    }
   }
 };
 
@@ -122,7 +151,10 @@ export const updatePrices = async (newPrices) => {
   for (const key in newPrices) {
     store.prices[key] = newPrices[key];
     
-    // Upsert to DB
-    await supabase.from('prices').upsert({ device_type: key, price: newPrices[key] });
+    if (isOffline()) {
+      enqueue('updatePrices', { device_type: key, price: newPrices[key] });
+    } else {
+      await supabase.from('prices').upsert({ device_type: key, price: newPrices[key] });
+    }
   }
 };
