@@ -1,12 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { isLoading, initData } from './store/db'
+import { isLoading, initData, globalDebtAlert } from './store/db'
 import { supabase } from './supabase.js'
 import { syncQueue } from './store/offlineQueue'
 import { isOnline } from './composables/useOnlineStatus'
 import OfflineBanner from './components/OfflineBanner.vue'
-import { Home, PlusSquare, CreditCard, Search, Users, Settings, Menu, X, Zap, LogOut } from 'lucide-vue-next'
+import { Home, PlusSquare, CreditCard, Search, Users, Settings, Menu, X, Zap, LogOut, AlertTriangle, Send } from 'lucide-vue-next'
 
 const isMobileMenuOpen = ref(false)
 const route = useRoute()
@@ -42,6 +42,23 @@ onMounted(async () => {
     isLoading.value = false
   }
 })
+
+const sendToWhatsAppFromAlert = () => {
+  if (!globalDebtAlert.value) return
+  const alertData = globalDebtAlert.value
+  const OWNER_WHATSAPP = '972594307298'
+  const message = [
+    `⚠️ تنبيه تجاوز دين`,
+    `━━━━━━━━━━━━━━━`,
+    `👤 الاسم: ${alertData.name}`,
+    `📞 هاتفه: ${alertData.phone || 'غير مسجل'}`,
+    `💸 الدين الحالي: ${Math.abs(alertData.balance)} ₪`,
+    `━━━━━━━━━━━━━━━`,
+    `🔗 الموقع: ${window.location.origin}`
+  ].join('%0A')
+  window.open(`https://wa.me/${OWNER_WHATSAPP}?text=${message}`, '_blank')
+  globalDebtAlert.value = null
+}
 </script>
 
 <template>
@@ -53,6 +70,26 @@ onMounted(async () => {
     <div class="w-16 h-16 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>
     <div class="mt-4 text-lg md:text-xl font-bold text-slate-700">جاري الاتصال السحابي...</div>
   </div>
+
+  <!-- إشعار الديون العائم (غير المزعج) -->
+  <transition name="page">
+    <div v-if="globalDebtAlert" class="fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-[110] bg-white border border-red-200 shadow-2xl shadow-red-500/20 rounded-2xl p-4 w-[90%] max-w-sm flex flex-col gap-3">
+      <div class="flex justify-between items-start">
+        <div class="flex items-center gap-2 text-red-600">
+          <AlertTriangle class="w-5 h-5" />
+          <h4 class="font-bold">تجاوز الحد المسموح للدين!</h4>
+        </div>
+        <button @click="globalDebtAlert = null" class="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-1 rounded-lg transition-colors">
+          <X class="w-4 h-4" />
+        </button>
+      </div>
+      <p class="text-sm text-slate-600">الزبون <span class="font-bold text-slate-800">{{ globalDebtAlert.name }}</span> تجاوز دينه <span class="font-bold text-red-600" dir="ltr">{{ Math.abs(globalDebtAlert.balance) }} ₪</span>.</p>
+      <button @click="sendToWhatsAppFromAlert" class="mt-1 w-full bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+        <Send class="w-4 h-4" />
+        إرسال تنبيه واتساب
+      </button>
+    </div>
+  </transition>
 
   <div v-if="route.meta.hideLayout">
     <router-view v-slot="{ Component }">

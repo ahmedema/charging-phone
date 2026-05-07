@@ -1,44 +1,12 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { store, addOperation, addCustomer, updateCustomerBalance } from '../store/db'
+import { store, addOperation, addCustomer, updateCustomerBalance, globalDebtAlert } from '../store/db'
 import { Smartphone, Laptop, Battery, Zap, User, CreditCard, Clock, Tag, Phone } from 'lucide-vue-next'
 
 const router = useRouter()
 
-// ─── إعدادات التنبيه ───
-const OWNER_WHATSAPP = '972594307298'
 const DEBT_LIMIT = 30
-
-const sendDebtAlert = (customerName, customerPhone, debtAmount) => {
-  const message = [
-    `⚠️ تنبيه تجاوز دين`,
-    `━━━━━━━━━━━━━━━`,
-    `👤 الاسم: ${customerName}`,
-    `📞 هاتفه: ${customerPhone || 'غير مسجل'}`,
-    `💸 الدين الحالي: ${Math.abs(debtAmount)} ₪`,
-    `━━━━━━━━━━━━━━━`,
-    `🔗 الموقع: ${window.location.origin}`
-  ].join('%0A')
-
-  // فتح واتساب
-  window.open(`https://wa.me/${OWNER_WHATSAPP}?text=${message}`, '_blank')
-
-  // إشعار المتصفح
-  if ('Notification' in window) {
-    const doNotify = () => {
-      new Notification('⚠️ تنبيه دين!', {
-        body: `${customerName} — دينه ${Math.abs(debtAmount)} ₪`,
-        icon: '/favicon.ico'
-      })
-    }
-    if (Notification.permission === 'granted') {
-      doNotify()
-    } else if (Notification.permission !== 'denied') {
-      Notification.requestPermission().then(p => { if (p === 'granted') doNotify() })
-    }
-  }
-}
 
 const deviceOptions = [
   { id: 'phone', name: 'هاتف', icon: Smartphone },
@@ -157,7 +125,12 @@ const submit = async () => {
     if (finalCustomerId) {
       const updatedCust = store.customers.find(c => c.id === finalCustomerId)
       if (updatedCust && updatedCust.balance < -DEBT_LIMIT) {
-        sendDebtAlert(updatedCust.name, updatedCust.phone, updatedCust.balance)
+        // تعيين التنبيه العام ليظهر كإشعار منبثق أعلى الشاشة
+        globalDebtAlert.value = {
+          name: updatedCust.name,
+          phone: updatedCust.phone,
+          balance: updatedCust.balance
+        }
       }
     }
 

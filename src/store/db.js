@@ -3,6 +3,7 @@ import { supabase } from '../supabase.js';
 import { enqueue, loadQueue } from './offlineQueue.js';
 
 export const isLoading = ref(true);
+export const globalDebtAlert = ref(null);
 
 export const store = reactive({
   customers: [],
