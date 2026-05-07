@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { store, deleteCustomer, editCustomer } from '../store/db'
-import { Users, Search, Plus, User, ArrowLeft, Banknote, ShieldAlert, Smartphone, Laptop, Battery, Zap, Pencil, Trash2, Check, X, Phone } from 'lucide-vue-next'
+import { Users, Search, Plus, User, ArrowLeft, Banknote, ShieldAlert, Smartphone, Laptop, Battery, Zap, Pencil, Trash2, Check, X, Phone, MessageCircle } from 'lucide-vue-next'
 import { format, parseISO } from 'date-fns'
 import { ar } from 'date-fns/locale'
 import { useRouter } from 'vue-router'
@@ -108,6 +108,38 @@ const handleDeleteCustomer = async () => {
     closeCustomer()
   }
 }
+
+// ─── إرسال تقرير الديون عبر واتسآب ───
+const OWNER_WHATSAPP = '972594307298'
+const DEBT_LIMIT = 30
+
+const debtorsAboveLimit = computed(() =>
+  store.customers
+    .filter(c => c.balance < -DEBT_LIMIT)
+    .sort((a, b) => a.balance - b.balance)
+)
+
+const sendAllDebtsReport = () => {
+  if (debtorsAboveLimit.value.length === 0) {
+    alert('لا يوجد زبائن تجاوز دينهم 30 ₪.')
+    return
+  }
+
+  const today = new Date().toLocaleDateString('ar-EG')
+  const lines = [
+    `📊 تقرير الديون - ${today}`,
+    `عدد المدينين: ${debtorsAboveLimit.value.length}`,
+    `━━━━━━━━━━━━━━━`,
+    ...debtorsAboveLimit.value.map((c, i) =>
+      `${i + 1}. 👤 ${c.name}%0A   📞 ${c.phone || 'غير مسجل'}%0A   💸 الدين: ${Math.abs(c.balance)} ₪`
+    ),
+    `━━━━━━━━━━━━━━━`,
+    `🔗 ${window.location.origin}`
+  ]
+
+  const message = lines.join('%0A')
+  window.open(`https://wa.me/${OWNER_WHATSAPP}?text=${message}`, '_blank')
+}
 </script>
 
 <template>
@@ -125,6 +157,19 @@ const handleDeleteCustomer = async () => {
         </div>
 
         <div class="flex flex-col sm:flex-row w-full md:w-auto gap-3 items-center">
+          <!-- زر إرسال تقرير الديون -->
+          <button
+            @click="sendAllDebtsReport"
+            class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm w-full sm:w-auto justify-center"
+            :class="debtorsAboveLimit.length > 0
+              ? 'bg-green-500 hover:bg-green-600 text-white shadow-green-500/30'
+              : 'bg-slate-100 text-slate-400 cursor-not-allowed'"
+          >
+            <MessageCircle class="w-4 h-4" />
+            <span>تقرير الديون واتساب</span>
+            <span v-if="debtorsAboveLimit.length > 0" class="bg-white/25 text-white text-xs font-bold px-1.5 py-0.5 rounded-md">{{ debtorsAboveLimit.length }}</span>
+          </button>
+
           <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-700 bg-white border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors shadow-sm w-full sm:w-auto justify-center sm:justify-start">
             <input type="checkbox" v-model="filterDebtsOnly" class="rounded text-red-500 focus:ring-red-500 w-4 h-4 accent-red-500" />
             <span>عرض الديون فقط</span>

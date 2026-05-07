@@ -6,6 +6,40 @@ import { Smartphone, Laptop, Battery, Zap, User, CreditCard, Clock, Tag, Phone }
 
 const router = useRouter()
 
+// ─── إعدادات التنبيه ───
+const OWNER_WHATSAPP = '972594307298'
+const DEBT_LIMIT = 30
+
+const sendDebtAlert = (customerName, customerPhone, debtAmount) => {
+  const message = [
+    `⚠️ تنبيه تجاوز دين`,
+    `━━━━━━━━━━━━━━━`,
+    `👤 الاسم: ${customerName}`,
+    `📞 هاتفه: ${customerPhone || 'غير مسجل'}`,
+    `💸 الدين الحالي: ${Math.abs(debtAmount)} ₪`,
+    `━━━━━━━━━━━━━━━`,
+    `🔗 الموقع: ${window.location.origin}`
+  ].join('%0A')
+
+  // فتح واتساب
+  window.open(`https://wa.me/${OWNER_WHATSAPP}?text=${message}`, '_blank')
+
+  // إشعار المتصفح
+  if ('Notification' in window) {
+    const doNotify = () => {
+      new Notification('⚠️ تنبيه دين!', {
+        body: `${customerName} — دينه ${Math.abs(debtAmount)} ₪`,
+        icon: '/favicon.ico'
+      })
+    }
+    if (Notification.permission === 'granted') {
+      doNotify()
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(p => { if (p === 'granted') doNotify() })
+    }
+  }
+}
+
 const deviceOptions = [
   { id: 'phone', name: 'هاتف', icon: Smartphone },
   { id: 'laptop', name: 'لابتوب', icon: Laptop },
@@ -118,6 +152,14 @@ const submit = async () => {
       from_balance: fromBalance,
       payment_mode: form.value.paymentMode
     })
+
+    // تحقق من تجاوز حد الدين وأرسل تنبيهاً
+    if (finalCustomerId) {
+      const updatedCust = store.customers.find(c => c.id === finalCustomerId)
+      if (updatedCust && updatedCust.balance < -DEBT_LIMIT) {
+        sendDebtAlert(updatedCust.name, updatedCust.phone, updatedCust.balance)
+      }
+    }
 
     // Navigate or show success
     router.push('/history')
