@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { store, addOperation, addCustomer, updateCustomerBalance } from '../store/db'
-import { Smartphone, Laptop, Battery, Zap, User, CreditCard, Clock, Tag } from 'lucide-vue-next'
+import { Smartphone, Laptop, Battery, Zap, User, CreditCard, Clock, Tag, Phone } from 'lucide-vue-next'
 
 const router = useRouter()
 
@@ -23,6 +23,7 @@ const form = ref({
   deviceType: 'phone',
   customerName: '',
   customerId: '',
+  customerPhone: '',
   paymentMode: 'debt',
   quantity: 1
 })
@@ -74,7 +75,11 @@ const submit = async () => {
 
   // If new customer is typed and we need them, create it
   if (isNewCustomer.value && form.value.customerName) {
-    const newCust = await addCustomer({ name: form.value.customerName })
+    const custData = { name: form.value.customerName }
+    if (form.value.customerPhone.trim()) {
+      custData.phone = form.value.customerPhone.trim()
+    }
+    const newCust = await addCustomer(custData)
     finalCustomerId = newCust.id
   }
 
@@ -182,6 +187,22 @@ const submit = async () => {
               <span class="text-slate-400 text-xs" dir="ltr">{{ cust.balance }}</span>
             </li>
           </ul>
+
+          <!-- حقل رقم الهاتف — يظهر فقط للزبون الجديد -->
+          <transition name="page">
+            <div v-if="isNewCustomer" class="relative">
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
+                <Phone class="w-5 h-5" />
+              </div>
+              <input
+                v-model="form.customerPhone"
+                type="tel"
+                placeholder="رقم الهاتف (اختياري)"
+                class="block w-full outline-none pr-10 pl-3 py-3 rounded-xl border border-slate-200 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-100 bg-slate-50 transition-all text-slate-800 font-medium text-sm md:text-base"
+                dir="ltr"
+              />
+            </div>
+          </transition>
         </div>
 
         <!-- Details Box -->

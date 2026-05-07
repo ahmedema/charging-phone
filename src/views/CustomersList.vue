@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { store, deleteCustomer, editCustomer } from '../store/db'
-import { Users, Search, Plus, User, ArrowLeft, Banknote, ShieldAlert, Smartphone, Laptop, Battery, Zap, Pencil, Trash2, Check, X } from 'lucide-vue-next'
+import { Users, Search, Plus, User, ArrowLeft, Banknote, ShieldAlert, Smartphone, Laptop, Battery, Zap, Pencil, Trash2, Check, X, Phone } from 'lucide-vue-next'
 import { format, parseISO } from 'date-fns'
 import { ar } from 'date-fns/locale'
 import { useRouter } from 'vue-router'
@@ -73,19 +73,27 @@ const getDeviceIcon = (device) => {
 const isEditing = ref(false)
 const editName = ref('')
 const editBalance = ref(0)
+const editPhone = ref('')
 
 const startEdit = () => {
   editName.value = selectedCustomer.value.name
   editBalance.value = selectedCustomer.value.balance
+  editPhone.value = selectedCustomer.value.phone || ''
   isEditing.value = true
 }
 
 const saveEdit = async () => {
   if (editName.value.trim()) {
     const updatedBalance = Number(editBalance.value) || 0
-    await editCustomer(selectedCustomer.value.id, { name: editName.value, balance: updatedBalance })
+    const updatedData = {
+      name: editName.value,
+      balance: updatedBalance,
+      phone: editPhone.value.trim() || null
+    }
+    await editCustomer(selectedCustomer.value.id, updatedData)
     selectedCustomer.value.name = editName.value
     selectedCustomer.value.balance = updatedBalance
+    selectedCustomer.value.phone = updatedData.phone
   }
   isEditing.value = false
 }
@@ -146,7 +154,11 @@ const handleDeleteCustomer = async () => {
               </div>
               <div>
                 <h3 class="font-bold text-slate-900 text-lg group-hover:text-primary-600 transition-colors">{{ customer.name }}</h3>
-                <p class="text-xs text-slate-400">كود: {{ customer.id.slice(-4) }}</p>
+                <p v-if="customer.phone" class="text-xs text-slate-400 flex items-center gap-1" dir="ltr">
+                  <Phone class="w-3 h-3" />
+                  {{ customer.phone }}
+                </p>
+                <p v-else class="text-xs text-slate-400">كود: {{ customer.id.slice(-4) }}</p>
               </div>
             </div>
           </div>
@@ -216,22 +228,51 @@ const handleDeleteCustomer = async () => {
                   </button>
                 </div>
               </div>
-              <div v-else class="flex items-center gap-2">
-                <input 
-                  type="text" 
-                  v-model="editName" 
-                  @keyup.enter="saveEdit"
-                  class="text-2xl font-extrabold text-slate-900 bg-white border border-slate-300 rounded-lg px-2 py-1 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                  autofocus
-                />
-                <button @click="saveEdit" class="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
-                  <Check class="w-4 h-4" />
-                </button>
-                 <button @click="cancelEdit" class="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">
-                  <X class="w-4 h-4" />
-                </button>
+
+              <!-- عرض رقم الهاتف عند عدم التعديل -->
+              <a v-if="!isEditing && selectedCustomer.phone"
+                 :href="'tel:' + selectedCustomer.phone"
+                 class="mt-1 flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:underline"
+                 dir="ltr"
+                 @click.stop
+              >
+                <Phone class="w-4 h-4" />
+                {{ selectedCustomer.phone }}
+              </a>
+              <p v-else-if="!isEditing" class="text-slate-500 text-sm mt-1">تفاصيل العمليات وحركة الرصيد</p>
+
+              <!-- نموذج التعديل -->
+              <div v-if="isEditing" class="flex flex-col gap-2 mt-1">
+                <div class="flex items-center gap-2">
+                  <input 
+                    type="text" 
+                    v-model="editName" 
+                    @keyup.enter="saveEdit"
+                    placeholder="اسم الزبون"
+                    class="text-2xl font-extrabold text-slate-900 bg-white border border-slate-300 rounded-lg px-2 py-1 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    autofocus
+                  />
+                  <button @click="saveEdit" class="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
+                    <Check class="w-4 h-4" />
+                  </button>
+                  <button @click="cancelEdit" class="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">
+                    <X class="w-4 h-4" />
+                  </button>
+                </div>
+                <!-- حقل رقم الهاتف في وضع التعديل -->
+                <div class="relative">
+                  <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
+                    <Phone class="w-4 h-4" />
+                  </div>
+                  <input
+                    v-model="editPhone"
+                    type="tel"
+                    placeholder="رقم الهاتف (اختياري)"
+                    class="block w-full outline-none pr-9 pl-3 py-2 rounded-xl border border-slate-200 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-100 bg-slate-50 transition-all text-slate-800 font-medium text-sm"
+                    dir="ltr"
+                  />
+                </div>
               </div>
-              <p class="text-slate-500 text-sm mt-1">تفاصيل العمليات وحركة الرصيد</p>
             </div>
             <div class="text-left">
               <span class="block text-xs font-semibold text-slate-400 mb-1">صافي الرصيد</span>
