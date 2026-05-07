@@ -46,17 +46,38 @@ onMounted(async () => {
 const sendToWhatsAppFromAlert = () => {
   if (!globalDebtAlert.value) return
   const alertData = globalDebtAlert.value
-  const OWNER_WHATSAPP = '972594307298'
+  
+  // صيغة الرسالة الموجهة للزبون
   const message = [
-    `⚠️ تنبيه تجاوز دين`,
-    `━━━━━━━━━━━━━━━`,
-    `👤 الاسم: ${alertData.name}`,
-    `📞 هاتفه: ${alertData.phone || 'غير مسجل'}`,
-    `💸 الدين الحالي: ${Math.abs(alertData.balance)} ₪`,
-    `━━━━━━━━━━━━━━━`,
-    `🔗 الموقع: ${window.location.origin}`
+    `مرحباً ${alertData.name}،`,
+    ``,
+    `نود تذكيرك بتجاوز سقف الدين المسموح به في *نقطة شحن المبحوح*.`,
+    `💸 قيمة الدين الحالي: *${Math.abs(alertData.balance)} ₪*`,
+    ``,
+    `يرجى إرسال قيمة الدين على محفظة جوال بي أو بال بي (PalPay) على الرقم:`,
+    `📱 *0598811023*`,
+    ``,
+    `⚠️ يرجى إرسال إشعار الدفع هنا بعد التحويل ليتم تحديث رصيدك.`,
+    `شاكرين تفهمكم وتعاونكم! 🌹`
   ].join('%0A')
-  window.open(`https://wa.me/${OWNER_WHATSAPP}?text=${message}`, '_blank')
+
+  // معالجة رقم الهاتف ليتوافق مع رابط واتساب المباشر
+  let targetNumber = ''
+  if (alertData.phone) {
+    let cleanPhone = alertData.phone.replace(/\D/g, '') // إزالة أي مسافات أو رموز
+    if (cleanPhone.startsWith('05')) {
+      cleanPhone = '972' + cleanPhone.substring(1) // تحويل 059 إلى 97259
+    }
+    targetNumber = cleanPhone
+  }
+  
+  // إذا كان للزبون رقم مسجل، سيفتح الدردشة معه مباشرة. 
+  // إذا لم يكن لديه رقم، سيفتح واتساب ويتيح لك اختيار جهة الاتصال لإرسال الرسالة الجاهزة.
+  const whatsappUrl = targetNumber 
+    ? `https://wa.me/${targetNumber}?text=${message}` 
+    : `https://wa.me/?text=${message}`
+
+  window.open(whatsappUrl, '_blank')
   globalDebtAlert.value = null
 }
 </script>

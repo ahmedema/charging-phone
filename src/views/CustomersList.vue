@@ -109,7 +109,40 @@ const handleDeleteCustomer = async () => {
   }
 }
 
-// ─── إرسال تقرير الديون عبر واتسآب ───
+// ─── إرسال تذكير بالدين لزبون واحد عبر واتساب ───
+const sendIndividualDebtReminder = (customer) => {
+  if (customer.balance >= 0) return
+
+  const message = [
+    `مرحباً ${customer.name}،`,
+    ``,
+    `نود تذكيرك بوجود ديون مستحقة في *نقطة شحن المبحوح*.`,
+    `💸 قيمة الدين الحالي: *${Math.abs(customer.balance)} ₪*`,
+    ``,
+    `يرجى إرسال قيمة الدين على محفظة جوال بي أو بال بي (PalPay) على الرقم:`,
+    `📱 *0598811023*`,
+    ``,
+    `⚠️ يرجى إرسال إشعار الدفع هنا بعد التحويل ليتم تحديث رصيدك.`,
+    `شاكرين تفهمكم وتعاونكم! 🌹`
+  ].join('%0A')
+
+  let targetNumber = ''
+  if (customer.phone) {
+    let cleanPhone = customer.phone.replace(/\D/g, '')
+    if (cleanPhone.startsWith('05')) {
+      cleanPhone = '972' + cleanPhone.substring(1)
+    }
+    targetNumber = cleanPhone
+  }
+  
+  const whatsappUrl = targetNumber 
+    ? `https://wa.me/${targetNumber}?text=${message}` 
+    : `https://wa.me/?text=${message}`
+
+  window.open(whatsappUrl, '_blank')
+}
+
+// ─── إرسال تقرير الديون الشامل لمالك النظام عبر واتسآب ───
 const OWNER_WHATSAPP = '972594307298'
 const DEBT_LIMIT = 30
 
@@ -274,17 +307,27 @@ const sendAllDebtsReport = () => {
                 </div>
               </div>
 
-              <!-- عرض رقم الهاتف عند عدم التعديل -->
-              <a v-if="!isEditing && selectedCustomer.phone"
-                 :href="'tel:' + selectedCustomer.phone"
-                 class="mt-1 flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:underline"
-                 dir="ltr"
-                 @click.stop
-              >
-                <Phone class="w-4 h-4" />
-                {{ selectedCustomer.phone }}
-              </a>
-              <p v-else-if="!isEditing" class="text-slate-500 text-sm mt-1">تفاصيل العمليات وحركة الرصيد</p>
+              <!-- عرض رقم الهاتف وزر تذكير الواتس عند عدم التعديل -->
+              <div v-if="!isEditing" class="mt-2 flex flex-col items-start gap-2">
+                <a v-if="selectedCustomer.phone"
+                   :href="'tel:' + selectedCustomer.phone"
+                   class="flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:underline bg-primary-50 px-2 py-1 rounded-md"
+                   dir="ltr"
+                   @click.stop
+                >
+                  <Phone class="w-3 h-3" />
+                  {{ selectedCustomer.phone }}
+                </a>
+                
+                <button v-if="selectedCustomer.balance < 0" 
+                        @click="sendIndividualDebtReminder(selectedCustomer)"
+                        class="flex items-center gap-1.5 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded-lg transition-colors">
+                  <MessageCircle class="w-3.5 h-3.5" />
+                  إرسال تذكير بالدين (واتساب)
+                </button>
+
+                <p v-if="!selectedCustomer.phone && selectedCustomer.balance >= 0" class="text-slate-500 text-xs">تفاصيل العمليات وحركة الرصيد</p>
+              </div>
 
               <!-- نموذج التعديل -->
               <div v-if="isEditing" class="flex flex-col gap-2 mt-1">
