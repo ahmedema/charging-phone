@@ -109,8 +109,7 @@ const handleDeleteCustomer = async () => {
   }
 }
 
-// ─── إرسال تذكير بالدين لزبون واحد عبر واتساب ───
-const sendIndividualDebtReminder = (customer) => {
+const sendIndividualDebtReminder = (customer, prefix = '972') => {
   if (customer.balance >= 0) return
 
   const message = [
@@ -130,7 +129,7 @@ const sendIndividualDebtReminder = (customer) => {
   if (customer.phone) {
     let cleanPhone = customer.phone.replace(/\D/g, '')
     if (cleanPhone.startsWith('05')) {
-      cleanPhone = '972' + cleanPhone.substring(1)
+      cleanPhone = prefix + cleanPhone.substring(1)
     }
     targetNumber = cleanPhone
   }
@@ -319,12 +318,26 @@ const sendAllDebtsReport = () => {
                   {{ selectedCustomer.phone }}
                 </a>
                 
-                <button v-if="selectedCustomer.balance < 0" 
-                        @click="sendIndividualDebtReminder(selectedCustomer)"
-                        class="flex items-center gap-1.5 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded-lg transition-colors">
-                  <MessageCircle class="w-3.5 h-3.5" />
-                  إرسال تذكير بالدين (واتساب)
-                </button>
+                <div v-if="selectedCustomer.balance < 0" class="flex flex-wrap gap-2">
+                  <template v-if="selectedCustomer.phone && selectedCustomer.phone.replace(/\D/g, '').startsWith('05')">
+                    <button @click="sendIndividualDebtReminder(selectedCustomer, '972')"
+                            class="flex items-center gap-1.5 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded-lg transition-colors">
+                      <MessageCircle class="w-3.5 h-3.5" />
+                      تذكير واتساب (972)
+                    </button>
+                    <button @click="sendIndividualDebtReminder(selectedCustomer, '970')"
+                            class="flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-lg transition-colors">
+                      <MessageCircle class="w-3.5 h-3.5" />
+                      تذكير واتساب (970)
+                    </button>
+                  </template>
+                  <button v-else 
+                          @click="sendIndividualDebtReminder(selectedCustomer, '972')"
+                          class="flex items-center gap-1.5 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded-lg transition-colors">
+                    <MessageCircle class="w-3.5 h-3.5" />
+                    إرسال تذكير بالدين (واتساب)
+                  </button>
+                </div>
 
                 <p v-if="!selectedCustomer.phone && selectedCustomer.balance >= 0" class="text-slate-500 text-xs">تفاصيل العمليات وحركة الرصيد</p>
               </div>

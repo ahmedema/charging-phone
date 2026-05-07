@@ -43,11 +43,10 @@ onMounted(async () => {
   }
 })
 
-const sendToWhatsAppFromAlert = () => {
+const sendToWhatsAppFromAlert = (prefix = '972') => {
   if (!globalDebtAlert.value) return
   const alertData = globalDebtAlert.value
   
-  // صيغة الرسالة الموجهة للزبون
   const message = [
     `مرحباً ${alertData.name}،`,
     ``,
@@ -61,18 +60,15 @@ const sendToWhatsAppFromAlert = () => {
     `شاكرين تفهمكم وتعاونكم! 🌹`
   ].join('%0A')
 
-  // معالجة رقم الهاتف ليتوافق مع رابط واتساب المباشر
   let targetNumber = ''
   if (alertData.phone) {
-    let cleanPhone = alertData.phone.replace(/\D/g, '') // إزالة أي مسافات أو رموز
+    let cleanPhone = alertData.phone.replace(/\D/g, '')
     if (cleanPhone.startsWith('05')) {
-      cleanPhone = '972' + cleanPhone.substring(1) // تحويل 059 إلى 97259
+      cleanPhone = prefix + cleanPhone.substring(1)
     }
     targetNumber = cleanPhone
   }
   
-  // إذا كان للزبون رقم مسجل، سيفتح الدردشة معه مباشرة. 
-  // إذا لم يكن لديه رقم، سيفتح واتساب ويتيح لك اختيار جهة الاتصال لإرسال الرسالة الجاهزة.
   const whatsappUrl = targetNumber 
     ? `https://wa.me/${targetNumber}?text=${message}` 
     : `https://wa.me/?text=${message}`
@@ -105,7 +101,17 @@ const sendToWhatsAppFromAlert = () => {
         </button>
       </div>
       <p class="text-sm text-slate-600">الزبون <span class="font-bold text-slate-800">{{ globalDebtAlert.name }}</span> تجاوز دينه <span class="font-bold text-red-600" dir="ltr">{{ Math.abs(globalDebtAlert.balance) }} ₪</span>.</p>
-      <button @click="sendToWhatsAppFromAlert" class="mt-1 w-full bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+      <div v-if="globalDebtAlert.phone && globalDebtAlert.phone.replace(/\D/g, '').startsWith('05')" class="flex gap-2 w-full mt-1">
+        <button @click="sendToWhatsAppFromAlert('972')" class="flex-1 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-colors">
+          <Send class="w-3.5 h-3.5" />
+          إرسال (972)
+        </button>
+        <button @click="sendToWhatsAppFromAlert('970')" class="flex-1 bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-colors">
+          <Send class="w-3.5 h-3.5" />
+          إرسال (970)
+        </button>
+      </div>
+      <button v-else @click="sendToWhatsAppFromAlert('972')" class="mt-1 w-full bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
         <Send class="w-4 h-4" />
         إرسال تنبيه واتساب
       </button>
