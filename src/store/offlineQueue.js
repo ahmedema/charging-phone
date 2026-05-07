@@ -51,6 +51,12 @@ export const enqueue = (type, payload) => {
   };
   offlineQueue.items.push(item);
   saveQueue();
+
+  // محاولة المزامنة التلقائية بعد 5 ثوانٍ إذا كنا متصلين
+  if (navigator.onLine) {
+    setTimeout(() => syncQueue(), 5000);
+  }
+
   return item.id;
 };
 

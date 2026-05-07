@@ -1,16 +1,28 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { isOnline } from '../composables/useOnlineStatus'
 import { offlineQueue, pendingCount, syncQueue } from '../store/offlineQueue'
 import { WifiOff, Wifi, RefreshCw, Clock } from 'lucide-vue-next'
 
 const hasPending = computed(() => pendingCount.value > 0)
 
-const handleManualSync = async () => {
-  if (isOnline.value && hasPending.value) {
-    await syncQueue()
+const showBackOnline = ref(false)
+let timeoutId = null
+
+watch(isOnline, (newVal) => {
+  if (newVal) {
+    showBackOnline.value = true
+    if (hasPending.value) {
+      syncQueue() // المزامنة التلقائية عند عودة الإنترنت
+    }
+    timeoutId = setTimeout(() => {
+      showBackOnline.value = false
+    }, 4000)
+  } else {
+    showBackOnline.value = false
+    if (timeoutId) clearTimeout(timeoutId)
   }
-}
+})
 </script>
 
 <template>
@@ -34,20 +46,17 @@ const handleManualSync = async () => {
     </div>
   </transition>
 
-  <!-- شريط عودة الاتصال + مزامنة -->
+  <!-- شريط عودة الاتصال (يظهر مؤقتاً فقط) -->
   <transition name="banner-slide">
-    <div v-if="isOnline && hasPending"
-      class="fixed top-0 left-0 right-0 z-[200] flex items-center justify-center gap-3 px-4 py-3 text-white font-bold text-sm shadow-lg cursor-pointer"
+    <div v-if="showBackOnline"
+      class="fixed top-0 left-0 right-0 z-[200] flex items-center justify-center gap-3 px-4 py-3 text-white font-bold text-sm shadow-lg"
       style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%)"
-      @click="handleManualSync"
     >
       <Wifi class="w-5 h-5 shrink-0" />
       <span class="flex-1 text-center">
-        عاد الاتصال!
-        <span v-if="offlineQueue.isSyncing">جاري مزامنة {{ pendingCount }} عملية...</span>
-        <span v-else>اضغط لمزامنة {{ pendingCount }} عملية معلّقة</span>
+        عاد الاتصال بالإنترنت!
+        <span v-if="offlineQueue.isSyncing"> (جاري مزامنة العمليات المعلّقة...)</span>
       </span>
-      <RefreshCw class="w-4 h-4 shrink-0" :class="offlineQueue.isSyncing ? 'animate-spin' : ''" />
     </div>
   </transition>
 </template>
