@@ -29,6 +29,7 @@ const form = ref({
 })
 
 const isNewCustomer = ref(false)
+const isSubmitting = ref(false)
 
 const currentPrice = computed(() => {
   return (store.prices[form.value.deviceType] || 0) * form.value.quantity
@@ -59,6 +60,7 @@ const selectCustomer = (cust) => {
 }
 
 const disableSubmit = computed(() => {
+  if (isSubmitting.value) return true
   if (form.value.paymentMode === 'debt' || form.value.paymentMode === 'balance') {
     if (!form.value.customerName) return true;
   }
@@ -71,49 +73,59 @@ const disableSubmit = computed(() => {
 })
 
 const submit = async () => {
-  let finalCustomerId = form.value.customerId
+  // منع الضغط المزدوج
+  if (isSubmitting.value) return
+  isSubmitting.value = true
 
-  // If new customer is typed and we need them, create it
-  if (isNewCustomer.value && form.value.customerName) {
-    const custData = { name: form.value.customerName }
-    if (form.value.customerPhone.trim()) {
-      custData.phone = form.value.customerPhone.trim()
+  try {
+    let finalCustomerId = form.value.customerId
+
+    // If new customer is typed and we need them, create it
+    if (isNewCustomer.value && form.value.customerName) {
+      const custData = { name: form.value.customerName }
+      if (form.value.customerPhone.trim()) {
+        custData.phone = form.value.customerPhone.trim()
+      }
+      const newCust = await addCustomer(custData)
+      finalCustomerId = newCust.id
     }
-    const newCust = await addCustomer(custData)
-    finalCustomerId = newCust.id
+
+    const price = currentPrice.value
+    let paid = 0
+    let debt = 0
+    let fromBalance = 0
+
+    if (form.value.paymentMode === 'now') {
+      paid = price
+    } else if (form.value.paymentMode === 'debt') {
+      debt = price
+      if (finalCustomerId) await updateCustomerBalance(finalCustomerId, -price)
+    } else if (form.value.paymentMode === 'balance') {
+      fromBalance = price
+      paid = price // We consider it paid since it came from their deposited balance
+      if (finalCustomerId) await updateCustomerBalance(finalCustomerId, -price)
+    }
+
+    await addOperation({
+      customer_id: finalCustomerId,
+      customer_name: form.value.customerName || 'زبون عام (نقدي)',
+      type: 'charge',
+      device_type: form.value.deviceType,
+      quantity: form.value.quantity,
+      amount: price,
+      paid,
+      debt,
+      from_balance: fromBalance,
+      payment_mode: form.value.paymentMode
+    })
+
+    // Navigate or show success
+    router.push('/history')
+  } catch (err) {
+    console.error('فشل الحفظ:', err)
+    // إعادة تفعيل الزر في حالة الخطأ ليتمكن المستخدم من المحاولة مجدداً
+    isSubmitting.value = false
   }
-
-  const price = currentPrice.value
-  let paid = 0
-  let debt = 0
-  let fromBalance = 0
-
-  if (form.value.paymentMode === 'now') {
-    paid = price
-  } else if (form.value.paymentMode === 'debt') {
-    debt = price
-    if (finalCustomerId) await updateCustomerBalance(finalCustomerId, -price)
-  } else if (form.value.paymentMode === 'balance') {
-    fromBalance = price
-    paid = price // We consider it paid since it came from their deposited balance
-    if (finalCustomerId) await updateCustomerBalance(finalCustomerId, -price)
-  }
-
-  await addOperation({
-    customer_id: finalCustomerId,
-    customer_name: form.value.customerName || 'زبون عام (نقدي)',
-    type: 'charge',
-    device_type: form.value.deviceType,
-    quantity: form.value.quantity,
-    amount: price,
-    paid,
-    debt,
-    from_balance: fromBalance,
-    payment_mode: form.value.paymentMode
-  })
-
-  // Navigate or show success
-  router.push('/history')
 }
 </script>
 
@@ -256,7 +268,8 @@ const submit = async () => {
         <button type="submit" :disabled="disableSubmit"
           class="w-full flex justify-center items-center gap-2 py-4 rounded-xl text-white font-bold text-lg shadow-lg shadow-primary-500/30 transition-all focus:ring focus:ring-primary-300"
           :class="disableSubmit ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-primary-600 active:bg-primary-700'">
-          حفظ وشحن
+          <span v-if="isSubmitting" class="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          <span>{{ isSubmitting ? 'جاري الحفظ...' : 'حفظ وشحن' }}</span>
         </button>
       </div>
     </form>
