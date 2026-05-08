@@ -1,12 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { isLoading, initData, globalDebtAlert } from './store/db'
+import { isLoading, initData, globalDebtAlert, store } from './store/db'
 import { supabase } from './supabase.js'
 import { syncQueue } from './store/offlineQueue'
 import { isOnline } from './composables/useOnlineStatus'
 import OfflineBanner from './components/OfflineBanner.vue'
-import { Home, PlusSquare, CreditCard, Search, Users, Settings, Menu, X, Zap, LogOut, AlertTriangle, Send } from 'lucide-vue-next'
+import { Home, PlusSquare, CreditCard, Search, Users, Settings, Menu, X, Zap, LogOut, AlertTriangle, Send, Download } from 'lucide-vue-next'
 
 const isMobileMenuOpen = ref(false)
 const route = useRoute()
@@ -75,6 +75,28 @@ const sendToWhatsAppFromAlert = (prefix = '972') => {
 
   window.open(whatsappUrl, '_blank')
   globalDebtAlert.value = null
+}
+
+const handleDownloadBackup = () => {
+  const backupData = {
+    exportDate: new Date().toISOString(),
+    customers: store.customers,
+    operations: store.operations,
+    prices: store.prices
+  }
+  
+  const jsonStr = JSON.stringify(backupData, null, 2)
+  const blob = new Blob([jsonStr], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  
+  const a = document.createElement('a')
+  a.href = url
+  const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-')
+  a.download = `ChargingPoint_Backup_${dateStr}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 </script>
 
@@ -175,6 +197,10 @@ const sendToWhatsAppFromAlert = (prefix = '972') => {
           </nav>
           
           <div class="mt-8 p-6 text-center border-t border-slate-100 space-y-4">
+            <button @click="handleDownloadBackup" class="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-blue-700 font-bold bg-blue-50 hover:bg-blue-100 transition-colors border border-blue-100">
+              <Download class="w-4 h-4" />
+              تنزيل نسخة احتياطية
+            </button>
             <button @click="handleLogout" class="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-red-600 font-bold bg-red-50 hover:bg-red-100 transition-colors border border-red-100">
               <LogOut class="w-4 h-4" />
               تسجيل الخروج
@@ -200,6 +226,10 @@ const sendToWhatsAppFromAlert = (prefix = '972') => {
 
       <!-- Mobile credit -->
       <div class="md:hidden mt-8 pb-4 flex flex-col items-center gap-3">
+        <button @click="handleDownloadBackup" class="flex items-center gap-2 text-blue-700 font-bold bg-blue-50 px-4 py-2 rounded-xl text-sm w-full justify-center active:bg-blue-100 transition-colors border border-blue-100">
+          <Download class="w-4 h-4" />
+          تنزيل نسخة احتياطية
+        </button>
         <button @click="handleLogout" class="flex items-center gap-2 text-red-500 font-bold bg-red-50 px-4 py-2 rounded-xl text-sm w-full justify-center active:bg-red-100 transition-colors border border-red-100">
           <LogOut class="w-4 h-4" />
           تسجيل الخروج
