@@ -1,16 +1,26 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isLoading, initData, globalDebtAlert, store } from './store/db'
+import { laundryLoading, initLaundryData } from './store/laundryDb'
 import { supabase } from './supabase.js'
 import { syncQueue } from './store/offlineQueue'
 import { isOnline } from './composables/useOnlineStatus'
 import OfflineBanner from './components/OfflineBanner.vue'
+import LaundryLayout from './components/LaundryLayout.vue'
 import { Home, PlusSquare, CreditCard, Search, Users, Settings, Menu, X, Zap, LogOut, AlertTriangle, Send, Download } from 'lucide-vue-next'
 
 const isMobileMenuOpen = ref(false)
 const route = useRoute()
 const router = useRouter()
+
+const isLaundryRoute = computed(() => {
+  return route.path.startsWith('/laundry')
+})
+
+const isAppLoading = computed(() => {
+  return isLaundryRoute.value ? laundryLoading.value : isLoading.value
+})
 
 const navigation = [
   { name: 'الرئيسية', href: '/', icon: Home },
@@ -33,13 +43,17 @@ const handleLogout = async () => {
 onMounted(async () => {
   const { data: { session } } = await supabase.auth.getSession()
   if (session) {
-    await initData()
+    // Initialize both apps data so switching is seamless
+    initData()
+    initLaundryData()
+    
     // مزامنة أي عمليات معلّقة من قبل (إن وُجدت)
     if (isOnline.value) {
       setTimeout(() => syncQueue(), 2000)
     }
   } else {
     isLoading.value = false
+    laundryLoading.value = false
   }
 })
 
@@ -105,14 +119,14 @@ const handleDownloadBackup = () => {
   <OfflineBanner />
 
   <!-- Global Loader -->
-  <div v-if="isLoading" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm">
-    <div class="w-16 h-16 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>
+  <div v-if="isAppLoading" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm">
+    <div class="w-16 h-16 border-4 border-slate-100 border-t-cyan-600 rounded-full animate-spin"></div>
     <div class="mt-4 text-lg md:text-xl font-bold text-slate-700">جاري الاتصال السحابي...</div>
   </div>
 
-  <!-- إشعار الديون العائم (غير المزعج) -->
+  <!-- إشعار الديون العائم (غير المزعج) - لتطبيق الشحن فقط -->
   <transition name="page">
-    <div v-if="globalDebtAlert" class="fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-[110] bg-white border border-red-200 shadow-2xl shadow-red-500/20 rounded-2xl p-4 w-[90%] max-w-sm flex flex-col gap-3">
+    <div v-if="globalDebtAlert && !isLaundryRoute" class="fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-[110] bg-white border border-red-200 shadow-2xl shadow-red-500/20 rounded-2xl p-4 w-[90%] max-w-sm flex flex-col gap-3">
       <div class="flex justify-between items-start">
         <div class="flex items-center gap-2 text-red-600">
           <AlertTriangle class="w-5 h-5" />
@@ -140,6 +154,7 @@ const handleDownloadBackup = () => {
     </div>
   </transition>
 
+  <!-- Login pages or full screen pages without layout -->
   <div v-if="route.meta.hideLayout">
     <router-view v-slot="{ Component }">
       <transition name="page" mode="out-in">
@@ -147,6 +162,11 @@ const handleDownloadBackup = () => {
       </transition>
     </router-view>
   </div>
+  
+  <!-- Laundry App Layout -->
+  <LaundryLayout v-else-if="isLaundryRoute" />
+
+  <!-- Charging Phone App Layout (Original) -->
   <div v-else class="min-h-screen bg-slate-50 flex flex-col md:flex-row rtl pb-20 md:pb-0">
     
     <!-- Mobile header -->
@@ -242,3 +262,4 @@ const handleDownloadBackup = () => {
     </main>
   </div>
 </template>
+
