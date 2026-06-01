@@ -155,19 +155,19 @@ const closeMobile = () => { isMobileMenuOpen.value = false }
 
 <style scoped>
 .laundry-bg {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #f0fdf4 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #f8fafc 100%);
 }
 .laundry-header {
-  background: linear-gradient(90deg, #16a34a, #22c55e);
+  background: linear-gradient(90deg, #1e293b, #0f172a);
 }
 .laundry-sidebar {
-  background: linear-gradient(180deg, #15803d 0%, #16a34a 60%, #22c55e 100%);
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
 }
 .laundry-sidebar-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(6px);
 }
 .laundry-bottom-nav {
-  background: linear-gradient(180deg, #15803d, #16a34a);
+  background: linear-gradient(180deg, #1e293b, #0f172a);
 }
 </style>

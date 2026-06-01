@@ -184,7 +184,13 @@ const submitOrder = async () => {
     msg += `شكراً لاختيارك مغسلة المبحوح! 🌹`
 
     whatsappMessage.value = msg
-    showSuccessModal.value = true
+    
+    if (!customer.phone || !customer.phone.trim()) {
+      router.push('/laundry/history')
+    } else {
+      showSuccessModal.value = true
+    }
+
 
   } catch (e) {
     console.error(e)

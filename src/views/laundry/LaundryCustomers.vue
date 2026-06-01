@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { laundryStore, deleteLaundryCustomer, editLaundryCustomer } from '../../store/laundryDb.js'
-import { Users, Search, Trash2, Edit2, AlertTriangle, Phone, Save, X, CheckCircle, Filter } from 'lucide-vue-next'
+import { Users, Search, Trash2, Edit2, AlertTriangle, Phone, Save, X, CheckCircle, Filter, Eye, Clock, Truck, CheckCircle2, Check, FileText, ShoppingBag } from 'lucide-vue-next'
 import { format } from 'date-fns'
 import { ar } from 'date-fns/locale'
 
@@ -12,6 +12,42 @@ const deleteWithOrders = ref(false)
 
 const customerToEdit = ref(null)
 const editFormData = ref({ name: '', phone: '' })
+
+// Profile State
+const customerProfile = ref(null)
+
+const profileOrders = computed(() => {
+  if (!customerProfile.value) return []
+  return laundryStore.orders
+    .filter(o => o.customer_id === customerProfile.value.id)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+})
+
+const activeOrders = computed(() => {
+  return profileOrders.value.filter(o => ['new', 'washing', 'ready'].includes(o.order_status))
+})
+
+const pastOrders = computed(() => {
+  return profileOrders.value.filter(o => o.order_status === 'delivered')
+})
+
+const openCustomerProfile = (cust) => {
+  customerProfile.value = cust
+}
+
+const statusOptions = {
+  new: { name: 'جديد', icon: Clock, color: 'text-slate-600 bg-slate-100 border-slate-200' },
+  washing: { name: 'قيد الغسيل', icon: Truck, color: 'text-indigo-600 bg-indigo-100 border-indigo-200' },
+  ready: { name: 'جاهز', icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-100 border-emerald-200' },
+  delivered: { name: 'تم التسليم', icon: Check, color: 'text-slate-500 bg-slate-100 border-slate-200' }
+}
+
+const paymentLabel = (p) => ({ paid: 'مدفوع كامل', partial: 'دفع جزئي', debt: 'دين' }[p] || p)
+const paymentClass = (p) => ({
+  paid: 'text-emerald-700 bg-emerald-50',
+  partial: 'text-amber-700 bg-amber-50',
+  debt: 'text-red-700 bg-red-50',
+}[p] || 'text-slate-600 bg-slate-50')
 
 const filteredCustomers = computed(() => {
   let list = laundryStore.customers
@@ -28,7 +64,7 @@ const filteredCustomers = computed(() => {
 const formatDate = (isoStr) => {
   if (!isoStr) return 'غير معروف'
   try {
-    return format(new Date(isoStr), 'dd MMM yyyy', { locale: ar })
+    return format(new Date(isoStr), 'dd MMM yyyy - hh:mm a', { locale: ar })
   } catch (e) {
     return isoStr
   }
@@ -150,6 +186,9 @@ const sendWhatsAppReminder = (cust, prefix = '972') => {
                       <button @click="sendWhatsAppReminder(cust, '970')" class="text-xs font-bold text-slate-700 bg-slate-50 hover:bg-green-50 hover:text-green-600 py-1 rounded">970</button>
                     </div>
                   </div>
+                  <button @click="openCustomerProfile(cust)" class="text-indigo-400 hover:text-indigo-600 p-1 rounded transition-colors" title="ملف الزبون والحركة">
+                    <Eye class="w-4 h-4" />
+                  </button>
                   <button @click="openEditCustomer(cust)" class="text-blue-400 hover:text-blue-600 p-1 rounded transition-colors" title="تعديل الزبون">
                     <Edit2 class="w-4 h-4" />
                   </button>
@@ -180,6 +219,9 @@ const sendWhatsAppReminder = (cust, prefix = '972') => {
               <button @click="sendWhatsAppReminder(cust, '970')" class="text-xs font-bold text-slate-700 bg-slate-50 hover:bg-green-50 hover:text-green-600 py-1 rounded">970</button>
             </div>
           </div>
+          <button @click="openCustomerProfile(cust)" class="text-indigo-400 hover:text-indigo-600 p-1 rounded">
+            <Eye class="w-4 h-4" />
+          </button>
           <button @click="openEditCustomer(cust)" class="text-blue-400 hover:text-blue-600 p-1 rounded">
             <Edit2 class="w-4 h-4" />
           </button>
@@ -271,6 +313,120 @@ const sendWhatsAppReminder = (cust, prefix = '972') => {
               <button type="button" @click="customerToEdit = null" class="flex-1 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl transition-colors">إلغاء</button>
             </div>
           </form>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Customer Profile / History Modal -->
+    <transition name="page">
+      <div v-if="customerProfile" class="fixed inset-0 z-[110] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="customerProfile = null"></div>
+        <div class="bg-white rounded-[2rem] shadow-2xl border border-slate-200 w-full max-w-2xl relative z-10 overflow-hidden flex flex-col max-h-[90vh]">
+          
+          <!-- Header (Glassmorphism) -->
+          <div class="bg-gradient-to-br from-indigo-600 to-indigo-800 p-6 flex flex-col relative shrink-0 overflow-hidden text-white">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+            <button @click="customerProfile = null" class="absolute top-4 left-4 text-white/70 hover:text-white bg-black/20 hover:bg-black/30 backdrop-blur-md rounded-full p-2 transition-colors z-10"><X class="w-5 h-5"/></button>
+            
+            <div class="flex items-center gap-4 z-10">
+              <div class="w-16 h-16 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/30 shadow-inner">
+                <Users class="w-8 h-8 text-white" />
+              </div>
+              <div class="flex-1">
+                <h3 class="text-2xl font-black text-white">{{ customerProfile.name }}</h3>
+                <p v-if="customerProfile.phone" class="text-indigo-100 font-medium mt-1 flex items-center gap-1 text-sm" dir="ltr">
+                  <Phone class="w-3.5 h-3.5" /> {{ customerProfile.phone }}
+                </p>
+                <p v-else class="text-indigo-200/80 font-medium mt-1 text-xs">لا يوجد رقم هاتف</p>
+              </div>
+              <div class="bg-white/10 backdrop-blur-md border border-white/20 p-3 rounded-2xl text-center min-w-[100px]">
+                <p class="text-[10px] font-bold text-indigo-100 uppercase mb-0.5">الديون المستحقة</p>
+                <p class="text-xl font-black text-white" dir="ltr">{{ Number(customerProfile.total_debt).toFixed(1) }} <span class="text-xs">₪</span></p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Scrollable Content -->
+          <div class="p-5 flex-1 overflow-y-auto bg-slate-50">
+            
+            <!-- Active Orders -->
+            <div v-if="activeOrders.length > 0" class="mb-8">
+              <h4 class="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
+                <ShoppingBag class="w-4 h-4 text-primary-500" />
+                الطلبات النشطة ({{ activeOrders.length }})
+              </h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div v-for="order in activeOrders" :key="order.id" 
+                     class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-all relative overflow-hidden"
+                     :class="order.order_status === 'ready' ? 'border-emerald-200 shadow-emerald-500/5' : 'border-indigo-200 shadow-indigo-500/5'">
+                  
+                  <div class="absolute top-0 right-0 w-full h-1" :class="order.order_status === 'ready' ? 'bg-emerald-400' : 'bg-indigo-400'"></div>
+                  
+                  <div class="flex justify-between items-start mb-3 mt-1">
+                    <span class="px-2.5 py-1 text-[10px] font-bold rounded-lg border flex items-center gap-1.5"
+                          :class="statusOptions[order.order_status]?.color">
+                      <component :is="statusOptions[order.order_status]?.icon" class="w-3.5 h-3.5" />
+                      {{ statusOptions[order.order_status]?.name }}
+                    </span>
+                    <span class="text-xs font-bold text-slate-400" dir="ltr">{{ formatDate(order.created_at).split(' - ')[0] }}</span>
+                  </div>
+                  
+                  <div class="flex justify-between items-end mt-4">
+                    <div>
+                      <p class="text-[10px] font-bold text-slate-500 mb-0.5">تكلفة الطلب</p>
+                      <p class="font-black text-slate-800 text-lg" dir="ltr">{{ Number(order.total_amount).toFixed(1) }} ₪</p>
+                    </div>
+                    <span class="px-2 py-0.5 text-[10px] font-bold rounded" :class="paymentClass(order.payment_status)">
+                      {{ paymentLabel(order.payment_status) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Timeline for Past Orders -->
+            <div>
+              <h4 class="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
+                <Clock class="w-4 h-4 text-slate-400" />
+                سجل الطلبات السابقة ({{ pastOrders.length }})
+              </h4>
+              
+              <div v-if="pastOrders.length === 0" class="text-center py-8 bg-white rounded-2xl border border-dashed border-slate-200">
+                <p class="text-sm text-slate-400 font-medium">لا توجد طلبات سابقة لهذا الزبون.</p>
+              </div>
+              
+              <div v-else class="space-y-3 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+                <div v-for="order in pastOrders" :key="order.id" class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                  
+                  <!-- Timeline Dot -->
+                  <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-slate-50 bg-white text-slate-400 group-hover:text-primary-500 group-hover:border-primary-100 transition-colors shadow-sm shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                    <Check class="w-4 h-4" />
+                  </div>
+                  
+                  <!-- Timeline Content -->
+                  <div class="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-2xl bg-white border border-slate-200 shadow-sm transition-all hover:shadow-md hover:border-slate-300">
+                    <div class="flex justify-between items-start mb-2">
+                      <p class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md" dir="ltr">{{ formatDate(order.created_at) }}</p>
+                      <span class="px-2 py-0.5 text-[9px] font-bold rounded" :class="paymentClass(order.payment_status)">
+                        {{ paymentLabel(order.payment_status) }}
+                      </span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                      <div>
+                        <p class="text-[10px] font-bold text-slate-500 mb-0.5">الإجمالي</p>
+                        <p class="font-black text-slate-700 text-sm" dir="ltr">{{ Number(order.total_amount).toFixed(1) }} ₪</p>
+                      </div>
+                      <div class="text-left">
+                        <p class="text-[10px] font-bold text-slate-500 mb-0.5">المدفوع</p>
+                        <p class="font-black text-emerald-600 text-sm" dir="ltr">{{ Number(order.paid_amount).toFixed(1) }} ₪</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+          </div>
         </div>
       </div>
     </transition>
