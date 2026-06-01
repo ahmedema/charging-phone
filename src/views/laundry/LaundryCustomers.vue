@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { laundryStore, deleteLaundryCustomer, editLaundryCustomer } from '../../store/laundryDb.js'
-import { Users, Search, Trash2, Edit2, AlertTriangle, Phone, Save, X, CheckCircle, Filter, Eye, Clock, Truck, CheckCircle2, Check, FileText, ShoppingBag } from 'lucide-vue-next'
+import { Users, Search, Trash2, Edit2, AlertTriangle, Phone, Save, X, CheckCircle, Filter, Eye, Clock, Truck, CheckCircle2, Check, FileText, ShoppingBag, Wallet } from 'lucide-vue-next'
 import { format } from 'date-fns'
 import { ar } from 'date-fns/locale'
 
@@ -29,6 +29,13 @@ const activeOrders = computed(() => {
 
 const pastOrders = computed(() => {
   return profileOrders.value.filter(o => o.order_status === 'delivered')
+})
+
+const profilePayments = computed(() => {
+  if (!customerProfile.value) return []
+  return (laundryStore.payments || [])
+    .filter(p => p.customer_id === customerProfile.value.id)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 })
 
 const openCustomerProfile = (cust) => {
@@ -326,7 +333,7 @@ const sendWhatsAppReminder = (cust, prefix = '972') => {
           <!-- Header (Glassmorphism) -->
           <div class="bg-gradient-to-br from-indigo-600 to-indigo-800 p-6 flex flex-col relative shrink-0 overflow-hidden text-white">
             <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
-            <button @click="customerProfile = null" class="absolute top-4 left-4 text-white/70 hover:text-white bg-black/20 hover:bg-black/30 backdrop-blur-md rounded-full p-2 transition-colors z-10"><X class="w-5 h-5"/></button>
+            <button @click.stop="customerProfile = null" class="absolute top-4 left-4 text-white/70 hover:text-white bg-black/20 hover:bg-black/30 backdrop-blur-md rounded-full w-10 h-10 flex items-center justify-center transition-all z-30 shadow-sm active:scale-95"><X class="w-5 h-5"/></button>
             
             <div class="flex items-center gap-4 z-10">
               <div class="w-16 h-16 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/30 shadow-inner">
@@ -379,6 +386,39 @@ const sendWhatsAppReminder = (cust, prefix = '972') => {
                     <span class="px-2 py-0.5 text-[10px] font-bold rounded" :class="paymentClass(order.payment_status)">
                       {{ paymentLabel(order.payment_status) }}
                     </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payments History -->
+            <div class="mb-8">
+              <h4 class="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
+                <Wallet class="w-4 h-4 text-emerald-500" />
+                سجل الدفعات المالية المسددة ({{ profilePayments.length }})
+              </h4>
+              
+              <div v-if="profilePayments.length === 0" class="text-center py-6 bg-white rounded-2xl border border-dashed border-slate-200">
+                <p class="text-xs text-slate-400 font-medium">لا توجد دفعات مسجلة لهذا الزبون.</p>
+              </div>
+              
+              <div v-else class="space-y-2">
+                <div v-for="pay in profilePayments" :key="pay.id"
+                     class="bg-white rounded-xl p-3.5 border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-emerald-200 transition-colors">
+                  <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                      <Check class="w-5 h-5 stroke-[3]" />
+                    </div>
+                    <div>
+                      <p class="font-extrabold text-slate-700 text-sm">تسديد دفعة نقدية</p>
+                      <p class="text-[10px] text-slate-400 mt-0.5" dir="ltr">{{ formatDate(pay.payment_date) }}</p>
+                      <p v-if="pay.notes" class="text-xs text-slate-500 mt-1 font-bold bg-slate-50 px-2 py-0.5 rounded border border-slate-100 w-fit">
+                        📝 {{ pay.notes }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="text-left">
+                    <span class="text-emerald-600 font-black text-base" dir="ltr">+ {{ Number(pay.amount).toFixed(1) }} ₪</span>
                   </div>
                 </div>
               </div>

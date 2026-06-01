@@ -85,15 +85,15 @@ const closeMobile = () => { isMobileMenuOpen.value = false }
     </transition>
 
     <!-- Mobile Bottom Nav -->
-    <div class="md:hidden fixed bottom-0 left-0 right-0 z-50 laundry-bottom-nav border-t border-primary-700/30 shadow-[0_-4px_20px_rgba(0,0,0,0.2)]">
+    <div class="md:hidden fixed bottom-0 left-0 right-0 z-[60] laundry-bottom-nav border-t border-primary-700/30 shadow-[0_-4px_20px_rgba(0,0,0,0.2)] safe-area-pb">
       <div class="flex justify-around items-center px-1 pt-2 pb-2">
         <router-link v-for="item in navigation" :key="item.name" :to="item.href"
-          class="flex flex-col items-center justify-center w-full py-1 rounded-xl transition-all"
+          class="flex flex-col items-center justify-center w-full py-1.5 rounded-xl transition-all"
           :class="isActive(item.href) ? 'text-primary-300 scale-105' : 'text-white/50 hover:text-white/80'">
           <div :class="isActive(item.href) ? 'bg-white/20 p-1.5 rounded-xl' : 'p-1.5'">
             <component :is="item.icon" class="w-5 h-5" />
           </div>
-          <span class="text-[9px] font-bold mt-0.5 max-w-full truncate px-0.5 text-center">{{ item.name }}</span>
+          <span class="text-[10px] font-extrabold mt-0.5 max-w-full truncate px-0.5 text-center">{{ item.name }}</span>
         </router-link>
       </div>
     </div>
@@ -169,5 +169,8 @@ const closeMobile = () => { isMobileMenuOpen.value = false }
 }
 .laundry-bottom-nav {
   background: linear-gradient(180deg, #1e293b, #0f172a);
+}
+.safe-area-pb {
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
 }
 </style>
