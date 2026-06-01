@@ -152,6 +152,9 @@ const submitOrder = async () => {
     savedOrder.value = { ...result.order, customer_phone: customer.phone }
     whatsappPhone.value = customer.phone || ''
 
+    const updatedCust = laundryStore.customers.find(c => c.id === result.custId)
+    const finalTotalDebt = updatedCust ? Number(updatedCust.total_debt) : 0
+
     let msg = `مرحباً ${customer.name}،\n`
     msg += `تم تسجيل طلبك في مغسلة المبحوح.\n\n`
     
@@ -168,11 +171,15 @@ const submitOrder = async () => {
     })
     
     msg += `\n`
-    msg += `💰 المجموع: ${totalOrderPrice.value.toFixed(1)} ₪\n`
-    msg += `💳 المدفوع: ${Number(paidAmount.value || 0).toFixed(1)} ₪\n`
-    if (remainingDebt.value > 0) {
-      msg += `📉 المتبقي (دين): ${remainingDebt.value.toFixed(1)} ₪\n`
+    msg += `💰 تكلفة الطلب: ${totalOrderPrice.value.toFixed(1)} ₪\n`
+    msg += `💳 المدفوع الآن: ${Number(paidAmount.value || 0).toFixed(1)} ₪\n`
+    
+    if (finalTotalDebt > 0) {
+      msg += `\n📉 إجمالي ديونك المستحقة: ${finalTotalDebt.toFixed(1)} ₪\n`
+    } else {
+      msg += `\n✅ حسابك مصفر، لا يوجد ديون.\n`
     }
+    
     msg += `\nحالة الطلب: قيد الغسيل ⏳\n`
     msg += `شكراً لاختيارك مغسلة المبحوح! 🌹`
 
