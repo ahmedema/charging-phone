@@ -178,7 +178,12 @@ const sendWhatsAppReminder = (cust, prefix = '972') => {
               <td class="px-4 py-4 text-slate-500" dir="ltr">{{ cust.phone || '-' }}</td>
               <td class="px-4 py-4 text-center font-bold text-slate-600">{{ getOrderCount(cust.id) }}</td>
               <td class="px-4 py-4 text-center font-extrabold" :class="Number(cust.total_debt) > 0 ? 'text-red-500' : 'text-emerald-500'" dir="ltr">
-                {{ Number(cust.total_debt).toFixed(1) }} ₪
+                <span v-if="Number(cust.total_debt) < 0">
+                  {{ Math.abs(Number(cust.total_debt)).toFixed(1) }} ₪ (رصيد)
+                </span>
+                <span v-else>
+                  {{ Number(cust.total_debt).toFixed(1) }} ₪
+                </span>
               </td>
               <td class="px-4 py-4 text-slate-400 text-xs">{{ formatDate(cust.created_at) }}</td>
               <td class="px-4 py-4 text-center">
@@ -248,9 +253,14 @@ const sendWhatsAppReminder = (cust, prefix = '972') => {
             <p class="font-bold text-slate-700">{{ getOrderCount(cust.id) }}</p>
           </div>
           <div class="text-center flex-1">
-            <p class="text-[10px] font-bold text-slate-500">الدين</p>
+            <p class="text-[10px] font-bold text-slate-500">الدين / الرصيد</p>
             <p class="font-extrabold text-sm" :class="Number(cust.total_debt) > 0 ? 'text-red-500' : 'text-emerald-500'" dir="ltr">
-              {{ Number(cust.total_debt).toFixed(1) }} ₪
+              <span v-if="Number(cust.total_debt) < 0">
+                {{ Math.abs(Number(cust.total_debt)).toFixed(1) }} ₪ (رصيد)
+              </span>
+              <span v-else>
+                {{ Number(cust.total_debt).toFixed(1) }} ₪
+              </span>
             </p>
           </div>
         </div>
@@ -347,8 +357,12 @@ const sendWhatsAppReminder = (cust, prefix = '972') => {
                 <p v-else class="text-indigo-200/80 font-medium mt-1 text-xs">لا يوجد رقم هاتف</p>
               </div>
               <div class="bg-white/10 backdrop-blur-md border border-white/20 p-3 rounded-2xl text-center min-w-[100px]">
-                <p class="text-[10px] font-bold text-indigo-100 uppercase mb-0.5">الديون المستحقة</p>
-                <p class="text-xl font-black text-white" dir="ltr">{{ Number(customerProfile.total_debt).toFixed(1) }} <span class="text-xs">₪</span></p>
+                <p class="text-[10px] font-bold text-indigo-100 uppercase mb-0.5">
+                  {{ Number(customerProfile.total_debt) > 0 ? 'الديون المستحقة' : 'الرصيد الدائن' }}
+                </p>
+                <p class="text-xl font-black text-white" dir="ltr">
+                  {{ Math.abs(Number(customerProfile.total_debt)).toFixed(1) }} <span class="text-xs">₪</span>
+                </p>
               </div>
             </div>
           </div>

@@ -16,7 +16,7 @@ const notes = ref('')
 const filteredCustomers = computed(() => {
   if (!customerQuery.value) return []
   return laundryStore.customers.filter(c => 
-    c.name.includes(customerQuery.value) && Number(c.total_debt) > 0
+    c.name.includes(customerQuery.value)
   )
 })
 
@@ -98,21 +98,29 @@ const submitPayment = async () => {
             <div v-for="cust in filteredCustomers" :key="cust.id" @click="selectCustomer(cust)"
               class="px-4 py-3 hover:bg-primary-50 cursor-pointer flex justify-between items-center border-b border-slate-50 last:border-0 transition-colors">
               <span class="font-bold text-slate-700">{{ cust.name }}</span>
-              <span class="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-md" dir="ltr">دين: {{ Number(cust.total_debt).toFixed(1) }} ₪</span>
+              <span v-if="Number(cust.total_debt) > 0" class="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-md" dir="ltr">
+                دين: {{ Number(cust.total_debt).toFixed(1) }} ₪
+              </span>
+              <span v-else class="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md" dir="ltr">
+                رصيد: {{ Math.abs(Number(cust.total_debt)).toFixed(1) }} ₪
+              </span>
             </div>
           </div>
           <div v-if="customerQuery && !selectedCustomer && filteredCustomers.length === 0" class="absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-3 text-center text-sm text-slate-500">
-            لا يوجد زبائن مديونين بهذا الاسم.
+            لا يوجد زبائن بهذا الاسم.
           </div>
         </div>
 
         <transition name="page">
-          <div v-if="selectedCustomer" class="mt-3 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
-            <div class="flex items-center gap-2 text-red-700 font-bold text-sm">
+          <div v-if="selectedCustomer" class="mt-3 border rounded-xl p-4 flex items-center justify-between"
+            :class="Number(selectedCustomer.total_debt) > 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'">
+            <div class="flex items-center gap-2 font-bold text-sm">
               <Info class="w-4 h-4" />
-              إجمالي الدين الحالي:
+              {{ Number(selectedCustomer.total_debt) > 0 ? 'إجمالي الدين الحالي:' : 'الرصيد الدائن الحالي:' }}
             </div>
-            <span class="font-extrabold text-red-600 text-lg" dir="ltr">{{ Number(selectedCustomer.total_debt).toFixed(1) }} ₪</span>
+            <span class="font-extrabold text-lg" :class="Number(selectedCustomer.total_debt) > 0 ? 'text-red-600' : 'text-emerald-600'" dir="ltr">
+              {{ Math.abs(Number(selectedCustomer.total_debt)).toFixed(1) }} ₪
+            </span>
           </div>
         </transition>
       </div>
@@ -133,8 +141,12 @@ const submitPayment = async () => {
         
         <transition name="page">
           <div v-if="selectedCustomer && amount" class="flex justify-between items-center text-xs font-bold px-1">
-            <span class="text-slate-500">الدين المتبقي بعد الدفع:</span>
-            <span class="text-primary-600" dir="ltr">{{ Math.max(0, Number(selectedCustomer.total_debt) - amount).toFixed(1) }} ₪</span>
+            <span class="text-slate-500">
+              {{ (Number(selectedCustomer.total_debt) - amount) > 0 ? 'الدين المتبقي بعد الدفع:' : 'الرصيد الدائن الجديد:' }}
+            </span>
+            <span :class="(Number(selectedCustomer.total_debt) - amount) > 0 ? 'text-red-600' : 'text-emerald-600'" dir="ltr">
+              {{ Math.abs(Number(selectedCustomer.total_debt) - amount).toFixed(1) }} ₪
+            </span>
           </div>
         </transition>
       </div>

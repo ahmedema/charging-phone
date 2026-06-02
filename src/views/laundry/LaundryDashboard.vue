@@ -25,7 +25,7 @@ const filteredOrders = computed(() => {
   })
 })
 
-const totalRevenue = computed(() => filteredOrders.value.reduce((s, o) => s + Number(o.paid_amount || 0), 0))
+const totalProfit = computed(() => filteredOrders.value.reduce((s, o) => s + Number(o.total_amount || 0), 0))
 const totalDebt = computed(() => laundryStore.customers.reduce((s, c) => s + Number(c.total_debt || 0), 0))
 const orderCount = computed(() => filteredOrders.value.length)
 const customerCount = computed(() => laundryStore.customers.length)
@@ -89,9 +89,11 @@ const formatDate = (iso) => {
         <div class="absolute -right-4 -top-4 w-20 h-20 bg-primary-100 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
         <div class="p-2.5 rounded-2xl bg-primary-100 text-primary-600 w-fit"><Wallet class="w-5 h-5" /></div>
         <div>
-          <p class="text-xs font-semibold text-slate-500">إيرادات المدة</p>
+          <p class="text-xs font-semibold text-slate-500">
+            {{ timeFilter === 'today' ? 'ربح اليوم' : timeFilter === 'week' ? 'ربح الأسبوع' : 'ربح الشهر' }}
+          </p>
           <div class="flex items-baseline gap-1 mt-0.5">
-            <span class="text-2xl font-extrabold text-slate-900">{{ totalRevenue.toFixed(1) }}</span>
+            <span class="text-2xl font-extrabold text-slate-900">{{ totalProfit.toFixed(1) }}</span>
             <span class="text-xs text-slate-500">₪</span>
           </div>
         </div>

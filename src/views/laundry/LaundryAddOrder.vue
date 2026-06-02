@@ -176,6 +176,8 @@ const submitOrder = async () => {
     
     if (finalTotalDebt > 0) {
       msg += `\n📉 إجمالي ديونك المستحقة: ${finalTotalDebt.toFixed(1)} ₪\n`
+    } else if (finalTotalDebt < 0) {
+      msg += `\n📈 رصيدك الدائن الحالي: ${Math.abs(finalTotalDebt).toFixed(1)} ₪\n`
     } else {
       msg += `\n✅ حسابك مصفر، لا يوجد ديون.\n`
     }
@@ -262,7 +264,12 @@ const finishAndGoToHistory = () => {
             <div v-for="cust in filteredCustomers" :key="cust.id" @click="selectCustomer(cust)"
               class="px-5 py-4 hover:bg-primary-50 cursor-pointer flex justify-between items-center border-b border-slate-50 transition-colors">
               <span class="font-extrabold text-slate-700 text-base">{{ cust.name }}</span>
-              <span v-if="Number(cust.total_debt) > 0" class="text-xs font-bold text-red-600 bg-red-50 border border-red-100 px-2.5 py-1 rounded-lg" dir="ltr">دين: {{ Number(cust.total_debt).toFixed(1) }} ₪</span>
+              <span v-if="Number(cust.total_debt) > 0" class="text-xs font-bold text-red-600 bg-red-50 border border-red-100 px-2.5 py-1 rounded-lg" dir="ltr">
+                دين: {{ Number(cust.total_debt).toFixed(1) }} ₪
+              </span>
+              <span v-else-if="Number(cust.total_debt) < 0" class="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-lg" dir="ltr">
+                رصيد: {{ Math.abs(Number(cust.total_debt)).toFixed(1) }} ₪
+              </span>
             </div>
             
             <div v-if="!filteredCustomers.find(c => c.name === customerQuery.trim())" 
@@ -278,11 +285,11 @@ const finishAndGoToHistory = () => {
         <transition name="page">
           <div v-if="selectedCustomer || isNewCustomer" class="flex flex-col gap-3">
             <div class="flex items-center justify-between p-4 rounded-2xl border-2 transition-all"
-                 :class="(selectedCustomer && Number(selectedCustomer.total_debt) > 0) ? 'bg-red-50/50 border-red-200' : 'bg-primary-50/50 border-primary-200'">
+                 :class="(selectedCustomer && Number(selectedCustomer.total_debt) > 0) ? 'bg-red-50/50 border-red-200' : (selectedCustomer && Number(selectedCustomer.total_debt) < 0) ? 'bg-emerald-50/50 border-emerald-200' : 'bg-primary-50/50 border-primary-200'">
               
               <div class="flex items-center gap-4">
                 <div class="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
-                     :class="(selectedCustomer && Number(selectedCustomer.total_debt) > 0) ? 'bg-red-100 text-red-600' : 'bg-primary-100 text-primary-600'">
+                     :class="(selectedCustomer && Number(selectedCustomer.total_debt) > 0) ? 'bg-red-100 text-red-600' : (selectedCustomer && Number(selectedCustomer.total_debt) < 0) ? 'bg-emerald-100 text-emerald-600' : 'bg-primary-100 text-primary-600'">
                   <User class="w-6 h-6" />
                 </div>
                 <div>
@@ -293,7 +300,10 @@ const finishAndGoToHistory = () => {
                   <p v-else-if="Number(selectedCustomer.total_debt) > 0" class="text-xs font-extrabold text-red-600 flex items-center gap-1 mt-0.5" dir="ltr">
                     تنبيه: دين سابق بقيمة {{ Number(selectedCustomer.total_debt).toFixed(1) }} ₪
                   </p>
-                  <p v-else class="text-xs font-bold text-slate-500 mt-0.5">زبون حالي (لا يوجد ديون)</p>
+                  <p v-else-if="Number(selectedCustomer.total_debt) < 0" class="text-xs font-extrabold text-emerald-600 flex items-center gap-1 mt-0.5" dir="ltr">
+                    رصيد سابق متوفر بقيمة {{ Math.abs(Number(selectedCustomer.total_debt)).toFixed(1) }} ₪
+                  </p>
+                  <p v-else class="text-xs font-bold text-slate-500 mt-0.5">زبون حالي (لا يوجد ديون أو رصيد)</p>
                 </div>
               </div>
               

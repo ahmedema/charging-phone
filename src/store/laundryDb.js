@@ -97,7 +97,7 @@ export const deleteLaundryCustomer = async (customerId, withOrders = false) => {
 export const updateLaundryCustomerDebt = async (customerId, debtDelta) => {
   const cust = laundryStore.customers.find(c => c.id === customerId);
   if (cust) {
-    cust.total_debt = Math.max(0, Number(cust.total_debt) + debtDelta);
+    cust.total_debt = Number(cust.total_debt) + debtDelta;
     if (!isOffline()) {
       await supabase.from('laundry_customers').update({ total_debt: cust.total_debt }).eq('id', customerId);
     }
