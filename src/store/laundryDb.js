@@ -32,21 +32,21 @@ export const initLaundryData = async () => {
 
     // Customers
     const { data: customers } = await supabase
-      .from('laundry_customers').select('*').order('created_at', { ascending: false });
+      .from('laundry_customers').select('*').order('created_at', { ascending: false }).limit(500);
     if (customers) laundryStore.customers = customers;
 
     // Orders
     const { data: orders } = await supabase
-      .from('laundry_orders').select('*').order('created_at', { ascending: false });
+      .from('laundry_orders').select('*').order('created_at', { ascending: false }).limit(500);
     if (orders) laundryStore.orders = orders;
 
     // Order Items
-    const { data: items } = await supabase.from('laundry_order_items').select('*');
+    const { data: items } = await supabase.from('laundry_order_items').select('*').order('created_at', { ascending: false }).limit(2000);
     if (items) laundryStore.orderItems = items;
 
     // Payments
     const { data: payments } = await supabase
-      .from('laundry_payments').select('*').order('created_at', { ascending: false });
+      .from('laundry_payments').select('*').order('created_at', { ascending: false }).limit(500);
     if (payments) laundryStore.payments = payments;
 
   } catch (err) {
@@ -99,7 +99,7 @@ export const updateLaundryCustomerDebt = async (customerId, debtDelta) => {
   if (cust) {
     cust.total_debt = Number(cust.total_debt) + debtDelta;
     if (!isOffline()) {
-      await supabase.from('laundry_customers').update({ total_debt: cust.total_debt }).eq('id', customerId);
+      supabase.from('laundry_customers').update({ total_debt: cust.total_debt }).eq('id', customerId).then();
     }
   }
 };
@@ -149,16 +149,18 @@ export const addLaundryOrder = async ({ customer, items, totalAmount, paidAmount
   laundryStore.orderItems.push(...orderItems);
 
   // Update customer debt
-  if (remainingDebt > 0) await updateLaundryCustomerDebt(custId, remainingDebt);
+  if (remainingDebt > 0) updateLaundryCustomerDebt(custId, remainingDebt);
 
   // Sync to Supabase
   if (!isOffline()) {
-    const { error: orderErr } = await supabase.from('laundry_orders').insert(order);
-    if (orderErr) console.error('خطأ حفظ الطلب:', orderErr);
-    if (orderItems.length > 0) {
-      const { error: itemsErr } = await supabase.from('laundry_order_items').insert(orderItems);
-      if (itemsErr) console.error('خطأ حفظ تفاصيل الطلب:', itemsErr);
-    }
+    supabase.from('laundry_orders').insert(order).then(({ error: orderErr }) => {
+      if (orderErr) console.error('خطأ حفظ الطلب:', orderErr);
+      if (orderItems.length > 0) {
+        supabase.from('laundry_order_items').insert(orderItems).then(({ error: itemsErr }) => {
+          if (itemsErr) console.error('خطأ حفظ تفاصيل الطلب:', itemsErr);
+        });
+      }
+    });
   }
 
   return { order, custId };
@@ -177,11 +179,11 @@ export const updateLaundryOrder = async (orderId, data) => {
     laundryStore.orders[idx] = { ...old, ...data };
 
     if (data.customer_id && data.remaining_debt > 0) {
-      await updateLaundryCustomerDebt(data.customer_id, Number(data.remaining_debt));
+      updateLaundryCustomerDebt(data.customer_id, Number(data.remaining_debt));
     }
 
     if (!isOffline()) {
-      await supabase.from('laundry_orders').update(data).eq('id', orderId);
+      supabase.from('laundry_orders').update(data).eq('id', orderId).then();
     }
   }
 };
@@ -191,7 +193,7 @@ export const updateOrderStatus = async (orderId, orderStatus) => {
   if (order) {
     order.order_status = orderStatus;
     if (!isOffline()) {
-      await supabase.from('laundry_orders').update({ order_status: orderStatus }).eq('id', orderId);
+      supabase.from('laundry_orders').update({ order_status: orderStatus }).eq('id', orderId).then();
     }
   }
 };
@@ -202,15 +204,16 @@ export const deleteLaundryOrder = async (orderId) => {
 
   // Reverse debt
   if (order.customer_id && order.remaining_debt > 0) {
-    await updateLaundryCustomerDebt(order.customer_id, -Number(order.remaining_debt));
+    updateLaundryCustomerDebt(order.customer_id, -Number(order.remaining_debt));
   }
 
   laundryStore.orders = laundryStore.orders.filter(o => o.id !== orderId);
   laundryStore.orderItems = laundryStore.orderItems.filter(i => i.order_id !== orderId);
 
   if (!isOffline()) {
-    await supabase.from('laundry_order_items').delete().eq('order_id', orderId);
-    await supabase.from('laundry_orders').delete().eq('id', orderId);
+    supabase.from('laundry_order_items').delete().eq('order_id', orderId).then(() => {
+      supabase.from('laundry_orders').delete().eq('id', orderId).then();
+    });
   }
 };
 
@@ -227,11 +230,12 @@ export const addLaundryPayment = async ({ customerId, customerName, amount, note
   };
 
   laundryStore.payments.unshift(payment);
-  await updateLaundryCustomerDebt(customerId, -Number(amount));
+  updateLaundryCustomerDebt(customerId, -Number(amount));
 
   if (!isOffline()) {
-    const { error } = await supabase.from('laundry_payments').insert(payment);
-    if (error) console.error('خطأ في حفظ الدفعة:', error);
+    supabase.from('laundry_payments').insert(payment).then(({ error }) => {
+      if (error) console.error('خطأ في حفظ الدفعة:', error);
+    });
   }
 
   return payment;

@@ -31,14 +31,14 @@ export const initData = async () => {
       });
     }
 
-    // Fetch customers
-    const { data: customersData, error: custError } = await supabase.from('customers').select('*').order('created_at', { ascending: false });
+    // Fetch customers (محدود لـ 500 لتسريع التحميل)
+    const { data: customersData, error: custError } = await supabase.from('customers').select('*').order('created_at', { ascending: false }).limit(500);
     if (!custError && customersData) {
       store.customers = customersData;
     }
 
-    // Fetch operations
-    const { data: operationsData, error: opError } = await supabase.from('operations').select('*').order('created_at', { ascending: false });
+    // Fetch operations (محدود لـ 500 لتسريع التحميل)
+    const { data: operationsData, error: opError } = await supabase.from('operations').select('*').order('created_at', { ascending: false }).limit(500);
     if (!opError && operationsData) {
       store.operations = operationsData;
     }
