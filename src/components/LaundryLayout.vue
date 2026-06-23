@@ -4,12 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../supabase.js'
 import {
   LayoutDashboard, PlusCircle, BookOpen, Users, Wallet, Settings, LogOut,
-  WashingMachine, Menu, X
+  WashingMachine, Menu, X, DownloadCloud
 } from 'lucide-vue-next'
+import { usePwaInstall } from './composables/usePwaInstall'
 
 const route = useRoute()
 const router = useRouter()
 const isMobileMenuOpen = ref(false)
+const { isInstallable, promptInstall } = usePwaInstall()
 
 const navigation = [
   { name: 'الرئيسية', href: '/laundry/', icon: LayoutDashboard },
@@ -74,7 +76,11 @@ const closeMobile = () => { isMobileMenuOpen.value = false }
               {{ item.name }}
             </router-link>
           </nav>
-          <div class="p-4 border-t border-white/10">
+          <div class="p-4 border-t border-white/10 space-y-2">
+            <button v-if="isInstallable" @click="promptInstall" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-500 text-white font-bold text-sm transition-colors">
+              <DownloadCloud class="w-4 h-4" />
+              تثبيت التطبيق
+            </button>
             <button @click="handleLogout" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-colors">
               <LogOut class="w-4 h-4" />
               تسجيل الخروج
@@ -133,6 +139,10 @@ const closeMobile = () => { isMobileMenuOpen.value = false }
 
         <!-- Bottom -->
         <div class="p-6 border-t border-white/10 space-y-3">
+          <button v-if="isInstallable" @click="promptInstall" class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-primary-600 hover:bg-primary-500 text-white font-bold text-sm transition-colors">
+            <DownloadCloud class="w-4 h-4" />
+            تثبيت التطبيق
+          </button>
           <button @click="handleLogout" class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-colors">
             <LogOut class="w-4 h-4" />
             تسجيل الخروج

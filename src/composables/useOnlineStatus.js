@@ -1,5 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { syncQueue } from '../store/offlineQueue';
+import { syncLaundryQueue } from '../store/laundryOfflineQueue';
 
 export const isOnline = ref(navigator.onLine);
 
@@ -11,6 +12,7 @@ const handleOnline = () => {
   clearTimeout(syncTimeout);
   syncTimeout = setTimeout(() => {
     syncQueue();
+    syncLaundryQueue();
   }, 1500);
 };
 

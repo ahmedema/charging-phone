@@ -1,5 +1,6 @@
 import { reactive, ref } from 'vue';
 import { supabase } from '../supabase.js';
+import { enqueueLaundry, loadLaundryQueue } from './laundryOfflineQueue.js';
 
 export const laundryLoading = ref(true);
 
@@ -22,6 +23,7 @@ const isOffline = () => !navigator.onLine;
 
 // ───────── Init ─────────
 export const initLaundryData = async () => {
+  loadLaundryQueue();
   laundryLoading.value = true;
   try {
     // Prices
@@ -60,9 +62,11 @@ export const initLaundryData = async () => {
 export const addLaundryCustomer = async (data) => {
   const customer = { id: uid(), total_debt: 0, created_at: new Date().toISOString(), ...data };
   laundryStore.customers.unshift(customer);
-  if (!isOffline()) {
+  try {
     const { error } = await supabase.from('laundry_customers').insert(customer);
-    if (error) console.error('خطأ في إضافة الزبون:', error);
+    if (error) throw error;
+  } catch (err) {
+    enqueueLaundry('addLaundryCustomer', customer);
   }
   return customer;
 };
@@ -71,42 +75,61 @@ export const editLaundryCustomer = async (id, data) => {
   const idx = laundryStore.customers.findIndex(c => c.id === id);
   if (idx !== -1) {
     laundryStore.customers[idx] = { ...laundryStore.customers[idx], ...data };
-    if (!isOffline()) await supabase.from('laundry_customers').update(data).eq('id', id);
+    try {
+      const { error } = await supabase.from('laundry_customers').update(data).eq('id', id);
+      if (error) throw error;
+    } catch (err) {
+      enqueueLaundry('updateLaundryCustomer', { id, data });
+    }
   }
 };
 
 export const deleteLaundryCustomer = async (customerId, withOrders = false) => {
   if (withOrders) {
-    // حذف كل بيانات الزبون
     const orderIds = laundryStore.orders.filter(o => o.customer_id === customerId).map(o => o.id);
     laundryStore.orderItems = laundryStore.orderItems.filter(i => !orderIds.includes(i.order_id));
     laundryStore.orders = laundryStore.orders.filter(o => o.customer_id !== customerId);
     laundryStore.payments = laundryStore.payments.filter(p => p.customer_id !== customerId);
-    if (!isOffline()) {
-      for (const oid of orderIds) {
-        await supabase.from('laundry_order_items').delete().eq('order_id', oid);
-        await supabase.from('laundry_orders').delete().eq('id', oid);
+    
+    for (const oid of orderIds) {
+      try {
+        const { error } = await supabase.from('laundry_order_items').delete().eq('order_id', oid);
+        if (error) throw error;
+        const { error: e2 } = await supabase.from('laundry_orders').delete().eq('id', oid);
+        if (e2) throw e2;
+      } catch (err) {
+        enqueueLaundry('deleteLaundryOrder', { orderId: oid });
       }
-      await supabase.from('laundry_payments').delete().eq('customer_id', customerId);
     }
+    // Delete payments
+    try {
+      await supabase.from('laundry_payments').delete().eq('customer_id', customerId);
+    } catch (err) {}
   }
   laundryStore.customers = laundryStore.customers.filter(c => c.id !== customerId);
-  if (!isOffline()) await supabase.from('laundry_customers').delete().eq('id', customerId);
+  try {
+    const { error } = await supabase.from('laundry_customers').delete().eq('id', customerId);
+    if (error) throw error;
+  } catch (err) {
+    enqueueLaundry('deleteLaundryCustomer', { id: customerId });
+  }
 };
 
 export const updateLaundryCustomerDebt = async (customerId, debtDelta) => {
   const cust = laundryStore.customers.find(c => c.id === customerId);
   if (cust) {
     cust.total_debt = Number(cust.total_debt) + debtDelta;
-    if (!isOffline()) {
-      supabase.from('laundry_customers').update({ total_debt: cust.total_debt }).eq('id', customerId).then();
+    try {
+      const { error } = await supabase.from('laundry_customers').update({ total_debt: cust.total_debt }).eq('id', customerId);
+      if (error) throw error;
+    } catch (err) {
+      enqueueLaundry('updateLaundryCustomer', { id: customerId, data: { total_debt: cust.total_debt } });
     }
   }
 };
 
 // ───────── Orders ─────────
 export const addLaundryOrder = async ({ customer, items, totalAmount, paidAmount, notes, orderStatus }) => {
-  // 1. Ensure customer exists
   let custId = customer.id;
   if (!custId) {
     const newCust = await addLaundryCustomer({ name: customer.name, phone: customer.phone || null });
@@ -116,7 +139,6 @@ export const addLaundryOrder = async ({ customer, items, totalAmount, paidAmount
   const remainingDebt = Math.max(0, totalAmount - paidAmount);
   const paymentStatus = remainingDebt === 0 ? 'paid' : paidAmount > 0 ? 'partial' : 'debt';
 
-  // 2. Create order
   const order = {
     id: uid(),
     customer_id: custId,
@@ -131,7 +153,6 @@ export const addLaundryOrder = async ({ customer, items, totalAmount, paidAmount
     created_at: new Date().toISOString(),
   };
 
-  // 3. Create items
   const orderItems = items.map(item => ({
     id: uid(),
     order_id: order.id,
@@ -144,23 +165,20 @@ export const addLaundryOrder = async ({ customer, items, totalAmount, paidAmount
     created_at: new Date().toISOString(),
   }));
 
-  // Optimistic update
   laundryStore.orders.unshift(order);
   laundryStore.orderItems.push(...orderItems);
 
-  // Update customer debt
   if (remainingDebt > 0) updateLaundryCustomerDebt(custId, remainingDebt);
 
-  // Sync to Supabase
-  if (!isOffline()) {
-    supabase.from('laundry_orders').insert(order).then(({ error: orderErr }) => {
-      if (orderErr) console.error('خطأ حفظ الطلب:', orderErr);
-      if (orderItems.length > 0) {
-        supabase.from('laundry_order_items').insert(orderItems).then(({ error: itemsErr }) => {
-          if (itemsErr) console.error('خطأ حفظ تفاصيل الطلب:', itemsErr);
-        });
-      }
-    });
+  try {
+    const { error: orderErr } = await supabase.from('laundry_orders').insert(order);
+    if (orderErr) throw orderErr;
+    if (orderItems.length > 0) {
+      const { error: itemsErr } = await supabase.from('laundry_order_items').insert(orderItems);
+      if (itemsErr) throw itemsErr;
+    }
+  } catch (err) {
+    enqueueLaundry('addLaundryOrder', { order, orderItems });
   }
 
   return { order, custId };
@@ -171,7 +189,6 @@ export const updateLaundryOrder = async (orderId, data) => {
   if (idx !== -1) {
     const old = laundryStore.orders[idx];
 
-    // Reverse old debt, apply new debt
     if (old.customer_id) {
       await updateLaundryCustomerDebt(old.customer_id, -Number(old.remaining_debt));
     }
@@ -182,8 +199,11 @@ export const updateLaundryOrder = async (orderId, data) => {
       updateLaundryCustomerDebt(data.customer_id, Number(data.remaining_debt));
     }
 
-    if (!isOffline()) {
-      supabase.from('laundry_orders').update(data).eq('id', orderId).then();
+    try {
+      const { error } = await supabase.from('laundry_orders').update(data).eq('id', orderId);
+      if (error) throw error;
+    } catch (err) {
+      enqueueLaundry('updateLaundryOrder', { orderId, data });
     }
   }
 };
@@ -192,8 +212,11 @@ export const updateOrderStatus = async (orderId, orderStatus) => {
   const order = laundryStore.orders.find(o => o.id === orderId);
   if (order) {
     order.order_status = orderStatus;
-    if (!isOffline()) {
-      supabase.from('laundry_orders').update({ order_status: orderStatus }).eq('id', orderId).then();
+    try {
+      const { error } = await supabase.from('laundry_orders').update({ order_status: orderStatus }).eq('id', orderId);
+      if (error) throw error;
+    } catch (err) {
+      enqueueLaundry('updateLaundryOrder', { orderId, data: { order_status: orderStatus } });
     }
   }
 };
@@ -202,7 +225,6 @@ export const deleteLaundryOrder = async (orderId) => {
   const order = laundryStore.orders.find(o => o.id === orderId);
   if (!order) return;
 
-  // Reverse debt
   if (order.customer_id && order.remaining_debt > 0) {
     updateLaundryCustomerDebt(order.customer_id, -Number(order.remaining_debt));
   }
@@ -210,10 +232,13 @@ export const deleteLaundryOrder = async (orderId) => {
   laundryStore.orders = laundryStore.orders.filter(o => o.id !== orderId);
   laundryStore.orderItems = laundryStore.orderItems.filter(i => i.order_id !== orderId);
 
-  if (!isOffline()) {
-    supabase.from('laundry_order_items').delete().eq('order_id', orderId).then(() => {
-      supabase.from('laundry_orders').delete().eq('id', orderId).then();
-    });
+  try {
+    const { error } = await supabase.from('laundry_order_items').delete().eq('order_id', orderId);
+    if (error) throw error;
+    const { error: e2 } = await supabase.from('laundry_orders').delete().eq('id', orderId);
+    if (e2) throw e2;
+  } catch (err) {
+    enqueueLaundry('deleteLaundryOrder', { orderId });
   }
 };
 
@@ -232,10 +257,11 @@ export const addLaundryPayment = async ({ customerId, customerName, amount, note
   laundryStore.payments.unshift(payment);
   updateLaundryCustomerDebt(customerId, -Number(amount));
 
-  if (!isOffline()) {
-    supabase.from('laundry_payments').insert(payment).then(({ error }) => {
-      if (error) console.error('خطأ في حفظ الدفعة:', error);
-    });
+  try {
+    const { error } = await supabase.from('laundry_payments').insert(payment);
+    if (error) throw error;
+  } catch (err) {
+    enqueueLaundry('addLaundryPayment', { payment });
   }
 
   return payment;
@@ -245,8 +271,12 @@ export const addLaundryPayment = async ({ customerId, customerName, amount, note
 export const updateLaundryPrices = async (newPrices) => {
   for (const key in newPrices) {
     laundryStore.prices[key] = newPrices[key];
-    if (!isOffline()) {
-      await supabase.from('laundry_prices').update({ price: newPrices[key], updated_at: new Date().toISOString() }).eq('key', key);
+    const updated_at = new Date().toISOString();
+    try {
+      const { error } = await supabase.from('laundry_prices').update({ price: newPrices[key], updated_at }).eq('key', key);
+      if (error) throw error;
+    } catch (err) {
+      enqueueLaundry('updateLaundryPrices', { key, price: newPrices[key], updated_at });
     }
   }
 };
