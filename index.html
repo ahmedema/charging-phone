@@ -8,17 +8,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <title>محطة الشحن - Phone Charging Management</title>
+    <link id="app-manifest" rel="manifest" href="/manifest-charging.json" />
     <script>
       (function() {
-        var link = document.createElement('link');
-        link.rel = 'manifest';
         if (window.location.pathname.startsWith('/laundry')) {
-          link.href = '/manifest-laundry.json';
+          var link = document.getElementById('app-manifest');
+          if (link) link.href = '/manifest-laundry.json';
           document.title = 'المغسلة - Laundry Management';
-        } else {
-          link.href = '/manifest-charging.json';
         }
-        document.head.appendChild(link);
       })();
     </script>
   </head>
