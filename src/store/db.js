@@ -16,10 +16,44 @@ export const store = reactive({
   },
 });
 
+const CACHE_KEY = 'charging_db_cache';
+
+export const loadLocalCache = () => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed.customers) store.customers = parsed.customers;
+      if (parsed.operations) store.operations = parsed.operations;
+      if (parsed.prices) store.prices = parsed.prices;
+    }
+  } catch (e) {
+    console.warn('Failed to load local cache', e);
+  }
+};
+
+export const saveLocalCache = () => {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      customers: store.customers,
+      operations: store.operations,
+      prices: store.prices
+    }));
+  } catch (e) {
+    console.warn('Failed to save local cache', e);
+  }
+};
+
 export const initData = async () => {
-  isLoading.value = true;
+  // عرض البيانات فوراً من الذاكرة إذا وجدت
+  loadLocalCache();
   
-  // تحميل قائمة الانتظار أولاً
+  // لا نظهر شريط التحميل المزعج إذا كانت البيانات موجودة مسبقاً
+  if (store.customers.length === 0) {
+    isLoading.value = true;
+  }
+  
+  // تحميل قائمة الانتظار
   loadQueue();
 
   try {
@@ -31,17 +65,20 @@ export const initData = async () => {
       });
     }
 
-    // Fetch customers (محدود لـ 500 لتسريع التحميل)
+    // Fetch customers
     const { data: customersData, error: custError } = await supabase.from('customers').select('*').order('created_at', { ascending: false }).limit(500);
     if (!custError && customersData) {
       store.customers = customersData;
     }
 
-    // Fetch operations (محدود لـ 500 لتسريع التحميل)
+    // Fetch operations
     const { data: operationsData, error: opError } = await supabase.from('operations').select('*').order('created_at', { ascending: false }).limit(500);
     if (!opError && operationsData) {
       store.operations = operationsData;
     }
+    
+    // تحديث الذاكرة بعد جلب البيانات الجديدة
+    saveLocalCache();
   } catch (err) {
     console.error('Error fetching data from Supabase:', err);
   } finally {
@@ -61,21 +98,14 @@ export const addOperation = async (op) => {
     ...op
   };
   
-  // Optimistic update (يُعرض فوراً في الواجهة)
   store.operations.unshift(newOp);
+  saveLocalCache(); // حفظ بعد التعديل لضمان بقائها لو أُغلق التطبيق بلا إنترنت
   
   if (isOffline()) {
-    // ❌ لا يوجد إنترنت → ضعها في قائمة الانتظار
     enqueue('addOperation', newOp);
-    console.warn('⏳ لا إنترنت: تم حفظ العملية في قائمة الانتظار');
   } else {
-    // ✅ يوجد إنترنت → أرسل مباشرة
     const { error } = await supabase.from('operations').insert(newOp);
-    if (error) {
-      console.error("Error adding operation:", error);
-      // فشل الإرسال → ضع في قائمة الانتظار
-      enqueue('addOperation', newOp);
-    }
+    if (error) enqueue('addOperation', newOp);
   }
   return newOp;
 };
@@ -88,18 +118,14 @@ export const addCustomer = async (customer) => {
     ...customer
   };
   
-  // Optimistic update
-  store.customers.push(newCust);
+  store.customers.unshift(newCust); // Unshift أفضل للظهور بأول القائمة
+  saveLocalCache();
   
   if (isOffline()) {
     enqueue('addCustomer', newCust);
-    console.warn('⏳ لا إنترنت: تم حفظ الزبون في قائمة الانتظار');
   } else {
     const { error } = await supabase.from('customers').insert(newCust);
-    if (error) {
-      console.error("Error adding customer:", error);
-      enqueue('addCustomer', newCust);
-    }
+    if (error) enqueue('addCustomer', newCust);
   }
   return newCust;
 };
@@ -107,21 +133,17 @@ export const addCustomer = async (customer) => {
 export const updateCustomerBalance = async (customerId, amount) => {
   const cust = store.customers.find(c => c.id === customerId);
   if (cust) {
-    // Optimistic update
     cust.balance = Number(cust.balance) + Number(amount);
+    saveLocalCache();
     
     if (isOffline()) {
       enqueue('updateBalance', { customerId, balance: cust.balance });
-      console.warn('⏳ لا إنترنت: تم حفظ تحديث الرصيد في قائمة الانتظار');
     } else {
       const { error } = await supabase.from('customers')
         .update({ balance: cust.balance })
         .eq('id', customerId);
         
-      if (error) {
-        console.error("Error updating customer balance:", error);
-        enqueue('updateBalance', { customerId, balance: cust.balance });
-      }
+      if (error) enqueue('updateBalance', { customerId, balance: cust.balance });
     }
   }
 };
@@ -129,6 +151,7 @@ export const updateCustomerBalance = async (customerId, amount) => {
 export const deleteCustomer = async (customerId) => {
   store.customers = store.customers.filter(c => c.id !== customerId);
   store.operations = store.operations.filter(op => op.customer_id !== customerId);
+  saveLocalCache();
   
   if (!isOffline()) {
     await supabase.from('operations').delete().eq('customer_id', customerId);
@@ -140,29 +163,24 @@ export const deleteOperation = async (operationId) => {
   const op = store.operations.find(o => o.id === operationId);
   if (!op) return;
 
-  // Reverse balance updates
   if (op.customer_id) {
     if (op.type === 'charge') {
       if (op.payment_mode === 'debt' || op.payment_mode === 'balance') {
-        await updateCustomerBalance(op.customer_id, Number(op.amount)); // reverse deduction (+amount)
+        await updateCustomerBalance(op.customer_id, Number(op.amount)); 
       }
     } else if (op.type === 'payment') {
-      await updateCustomerBalance(op.customer_id, -Number(op.amount)); // reverse payment (-amount)
+      await updateCustomerBalance(op.customer_id, -Number(op.amount)); 
     }
   }
 
-  // Remove from store
   store.operations = store.operations.filter(o => o.id !== operationId);
+  saveLocalCache();
 
   if (isOffline()) {
     enqueue('deleteOperation', { id: operationId });
-    console.warn('⏳ لا إنترنت: تم حفظ حذف العملية في قائمة الانتظار');
   } else {
     const { error } = await supabase.from('operations').delete().eq('id', operationId);
-    if (error) {
-      console.error("Error deleting operation:", error);
-      enqueue('deleteOperation', { id: operationId });
-    }
+    if (error) enqueue('deleteOperation', { id: operationId });
   }
 };
 
@@ -170,6 +188,7 @@ export const editCustomer = async (customerId, updatedData) => {
   const index = store.customers.findIndex(c => c.id === customerId);
   if (index !== -1) {
     store.customers[index] = { ...store.customers[index], ...updatedData };
+    saveLocalCache();
     
     if (!isOffline()) {
       await supabase.from('customers').update(updatedData).eq('id', customerId);
@@ -178,9 +197,9 @@ export const editCustomer = async (customerId, updatedData) => {
 };
 
 export const updatePrices = async (newPrices) => {
-  // Update local store
   for (const key in newPrices) {
     store.prices[key] = newPrices[key];
+    saveLocalCache();
     
     if (isOffline()) {
       enqueue('updatePrices', { device_type: key, price: newPrices[key] });

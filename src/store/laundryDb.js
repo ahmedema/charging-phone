@@ -17,6 +17,38 @@ export const laundryStore = reactive({
   },
 });
 
+const LAUNDRY_CACHE_KEY = 'laundry_db_cache';
+
+export const loadLaundryLocalCache = () => {
+  try {
+    const cached = localStorage.getItem(LAUNDRY_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed.customers) laundryStore.customers = parsed.customers;
+      if (parsed.orders) laundryStore.orders = parsed.orders;
+      if (parsed.orderItems) laundryStore.orderItems = parsed.orderItems;
+      if (parsed.payments) laundryStore.payments = parsed.payments;
+      if (parsed.prices) laundryStore.prices = parsed.prices;
+    }
+  } catch (e) {
+    console.warn('Failed to load laundry cache', e);
+  }
+};
+
+export const saveLaundryLocalCache = () => {
+  try {
+    localStorage.setItem(LAUNDRY_CACHE_KEY, JSON.stringify({
+      customers: laundryStore.customers,
+      orders: laundryStore.orders,
+      orderItems: laundryStore.orderItems,
+      payments: laundryStore.payments,
+      prices: laundryStore.prices
+    }));
+  } catch (e) {
+    console.warn('Failed to save laundry cache', e);
+  }
+};
+
 // ───────── Helpers ─────────
 const uid = () => Date.now().toString() + Math.random().toString(36).slice(2, 7);
 const isOffline = () => !navigator.onLine;
@@ -24,7 +56,15 @@ const isOffline = () => !navigator.onLine;
 // ───────── Init ─────────
 export const initLaundryData = async () => {
   loadLaundryQueue();
-  laundryLoading.value = true;
+  
+  // عرض البيانات من الذاكرة لضمان عدم بقاء الشاشة فارغة بدون إنترنت
+  loadLaundryLocalCache();
+  
+  // لا نظهر شريط التحميل إذا وجدنا بيانات مسبقاً في الذاكرة
+  if (laundryStore.customers.length === 0 && laundryStore.orders.length === 0) {
+    laundryLoading.value = true;
+  }
+
   try {
     // Prices
     const { data: pricesData } = await supabase.from('laundry_prices').select('*');
@@ -50,6 +90,9 @@ export const initLaundryData = async () => {
     const { data: payments } = await supabase
       .from('laundry_payments').select('*').order('created_at', { ascending: false }).limit(500);
     if (payments) laundryStore.payments = payments;
+    
+    // حفظ التحديثات للذاكرة
+    saveLaundryLocalCache();
 
   } catch (err) {
     console.error('خطأ في تحميل بيانات المغسلة:', err);
@@ -62,6 +105,7 @@ export const initLaundryData = async () => {
 export const addLaundryCustomer = async (data) => {
   const customer = { id: uid(), total_debt: 0, created_at: new Date().toISOString(), ...data };
   laundryStore.customers.unshift(customer);
+  saveLaundryLocalCache();
   try {
     const { error } = await supabase.from('laundry_customers').insert(customer);
     if (error) throw error;
@@ -75,6 +119,7 @@ export const editLaundryCustomer = async (id, data) => {
   const idx = laundryStore.customers.findIndex(c => c.id === id);
   if (idx !== -1) {
     laundryStore.customers[idx] = { ...laundryStore.customers[idx], ...data };
+    saveLaundryLocalCache();
     try {
       const { error } = await supabase.from('laundry_customers').update(data).eq('id', id);
       if (error) throw error;
@@ -101,12 +146,13 @@ export const deleteLaundryCustomer = async (customerId, withOrders = false) => {
         enqueueLaundry('deleteLaundryOrder', { orderId: oid });
       }
     }
-    // Delete payments
     try {
       await supabase.from('laundry_payments').delete().eq('customer_id', customerId);
     } catch (err) {}
   }
   laundryStore.customers = laundryStore.customers.filter(c => c.id !== customerId);
+  saveLaundryLocalCache();
+  
   try {
     const { error } = await supabase.from('laundry_customers').delete().eq('id', customerId);
     if (error) throw error;
@@ -119,6 +165,7 @@ export const updateLaundryCustomerDebt = async (customerId, debtDelta) => {
   const cust = laundryStore.customers.find(c => c.id === customerId);
   if (cust) {
     cust.total_debt = Number(cust.total_debt) + debtDelta;
+    saveLaundryLocalCache();
     try {
       const { error } = await supabase.from('laundry_customers').update({ total_debt: cust.total_debt }).eq('id', customerId);
       if (error) throw error;
@@ -167,6 +214,8 @@ export const addLaundryOrder = async ({ customer, items, totalAmount, paidAmount
 
   laundryStore.orders.unshift(order);
   laundryStore.orderItems.push(...orderItems);
+  
+  saveLaundryLocalCache();
 
   if (remainingDebt > 0) updateLaundryCustomerDebt(custId, remainingDebt);
 
@@ -194,6 +243,7 @@ export const updateLaundryOrder = async (orderId, data) => {
     }
 
     laundryStore.orders[idx] = { ...old, ...data };
+    saveLaundryLocalCache();
 
     if (data.customer_id && data.remaining_debt > 0) {
       updateLaundryCustomerDebt(data.customer_id, Number(data.remaining_debt));
@@ -212,6 +262,7 @@ export const updateOrderStatus = async (orderId, orderStatus) => {
   const order = laundryStore.orders.find(o => o.id === orderId);
   if (order) {
     order.order_status = orderStatus;
+    saveLaundryLocalCache();
     try {
       const { error } = await supabase.from('laundry_orders').update({ order_status: orderStatus }).eq('id', orderId);
       if (error) throw error;
@@ -231,6 +282,7 @@ export const deleteLaundryOrder = async (orderId) => {
 
   laundryStore.orders = laundryStore.orders.filter(o => o.id !== orderId);
   laundryStore.orderItems = laundryStore.orderItems.filter(i => i.order_id !== orderId);
+  saveLaundryLocalCache();
 
   try {
     const { error } = await supabase.from('laundry_order_items').delete().eq('order_id', orderId);
@@ -255,6 +307,8 @@ export const addLaundryPayment = async ({ customerId, customerName, amount, note
   };
 
   laundryStore.payments.unshift(payment);
+  saveLaundryLocalCache();
+  
   updateLaundryCustomerDebt(customerId, -Number(amount));
 
   try {
@@ -272,6 +326,8 @@ export const updateLaundryPrices = async (newPrices) => {
   for (const key in newPrices) {
     laundryStore.prices[key] = newPrices[key];
     const updated_at = new Date().toISOString();
+    saveLaundryLocalCache();
+    
     try {
       const { error } = await supabase.from('laundry_prices').update({ price: newPrices[key], updated_at }).eq('key', key);
       if (error) throw error;
