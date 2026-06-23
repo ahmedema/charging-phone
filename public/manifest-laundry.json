@@ -1,0 +1,20 @@
+{
+  "name": "مغسلة المكار",
+  "short_name": "المغسلة",
+  "description": "نظام إدارة المغسلة",
+  "theme_color": "#0ea5e9",
+  "background_color": "#f8fafc",
+  "display": "standalone",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/laundry/",
+  "scope": "/laundry/",
+  "icons": [
+    {
+      "src": "/laundry-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

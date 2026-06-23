@@ -36,25 +36,8 @@ export default defineConfig({
           }
         ]
       },
-      manifest: {
-        name: 'محطة شحن المكار',
-        short_name: 'محطة الشحن',
-        description: 'نظام إدارة شحن الأجهزة',
-        theme_color: '#4f46e5',
-        background_color: '#f8fafc',
-        display: 'standalone',
-        lang: 'ar',
-        dir: 'rtl',
-        start_url: '/',
-        icons: [
-          {
-            src: '/favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable'
-          }
-        ]
-      }
+      manifest: false,
+      injectRegister: 'auto',
     })
   ],
 })
